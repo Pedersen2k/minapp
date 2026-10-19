@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { uid } from './id'
 import { seedData } from './seed'
+import { useSync } from './sync'
 import type { AppData, Page, Project, Task } from './types'
 
 const STORAGE_KEY = 'minapp:v1'
@@ -27,6 +28,8 @@ function useStoreValue() {
       // Ignorer (privat modus o.l.)
     }
   }, [data])
+
+  const sync = useSync(data, setData)
 
   const addTask = useCallback((task: Omit<Task, 'id' | 'createdAt' | 'done'>) => {
     const t: Task = { ...task, id: uid(), createdAt: Date.now(), done: false }
@@ -87,8 +90,8 @@ function useStoreValue() {
   }, [])
 
   return useMemo(
-    () => ({ ...data, addTask, updateTask, toggleTask, deleteTask, addProject, deleteProject, addPage, updatePage, deletePage }),
-    [data, addTask, updateTask, toggleTask, deleteTask, addProject, deleteProject, addPage, updatePage, deletePage],
+    () => ({ ...data, sync, addTask, updateTask, toggleTask, deleteTask, addProject, deleteProject, addPage, updatePage, deletePage }),
+    [data, sync, addTask, updateTask, toggleTask, deleteTask, addProject, deleteProject, addPage, updatePage, deletePage],
   )
 }
 

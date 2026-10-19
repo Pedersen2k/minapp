@@ -1,4 +1,4 @@
-import { CalendarRange, Inbox, Monitor, Moon, Plus, Search, Sun } from 'lucide-react'
+import { CalendarRange, Cloud, CloudOff, HardDrive, Inbox, LogOut, Monitor, Moon, Plus, RefreshCw, Search, Sun } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { todayISO } from '../lib/date'
 import { useStore } from '../lib/store'
@@ -118,7 +118,36 @@ export function Sidebar({ view, onNavigate, onSearch, theme, onTheme }: Props) {
         <button onClick={() => onTheme(nextTheme[theme])} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm text-muted hover:bg-hover">
           {themeIcon[theme]} Tema: {themeLabel[theme]}
         </button>
+        <SyncRow />
       </div>
     </nav>
+  )
+}
+
+const SYNC_LABEL = {
+  local: { icon: <HardDrive size={15} />, text: 'Lagres bare på denne enheten' },
+  syncing: { icon: <RefreshCw size={15} className="animate-spin" />, text: 'Synkroniserer …' },
+  synced: { icon: <Cloud size={15} />, text: 'Synkronisert' },
+  offline: { icon: <CloudOff size={15} />, text: 'Frakoblet – lagres lokalt' },
+}
+
+function SyncRow() {
+  const { sync } = useStore()
+  const { icon, text } = SYNC_LABEL[sync.status]
+  return (
+    <div className="flex items-center gap-2.5 px-2.5 py-2 text-sm text-muted">
+      <span className={sync.status === 'offline' ? 'text-[#f59e0b]' : ''}>{icon}</span>
+      <span className="flex-1 truncate" title={sync.session?.user.email}>{text}</span>
+      {sync.session && (
+        <button
+          onClick={() => confirm('Logge ut?') && sync.signOut()}
+          aria-label="Logg ut"
+          title="Logg ut"
+          className="grid size-7 place-items-center rounded-md hover:bg-hover hover:text-fg"
+        >
+          <LogOut size={15} />
+        </button>
+      )}
+    </div>
   )
 }

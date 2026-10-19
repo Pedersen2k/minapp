@@ -1,6 +1,7 @@
 import { Menu, Plus, Search } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { CommandPalette } from './components/CommandPalette'
+import { Login } from './components/Login'
 import { PageEditor } from './components/PageEditor'
 import { QuickAdd } from './components/QuickAdd'
 import { Sidebar, type Theme } from './components/Sidebar'
@@ -38,6 +39,14 @@ const isTyping = (el: EventTarget | null) =>
   el instanceof HTMLElement && (el.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName))
 
 export default function App() {
+  const { sync } = useStore()
+  useTheme()
+  if (sync.enabled && !sync.authReady) return null
+  if (sync.enabled && !sync.session) return <Login />
+  return <Workspace />
+}
+
+function Workspace() {
   const { pages, projects } = useStore()
   const [view, navigate] = useRoute()
   const [theme, setTheme] = useTheme()
