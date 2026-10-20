@@ -1,10 +1,18 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from './supabase'
 
+export interface Shortcut {
+  id: string
+  name: string
+  url: string
+}
+
 export interface Settings {
   gmailScriptUrl?: string
   gmailKey?: string
   weather?: { name: string; lat: number; lon: number }
+  notes?: string
+  shortcuts?: Shortcut[]
 }
 
 export const DEFAULT_WEATHER = { name: 'Ålesund', lat: 62.4723, lon: 6.1549 }

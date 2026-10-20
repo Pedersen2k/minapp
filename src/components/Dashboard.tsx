@@ -8,6 +8,7 @@ import { useStore } from '../lib/store'
 import type { Task } from '../lib/types'
 import { useOpenTask } from '../lib/ui-context'
 import { fetchWeather, weatherKind, weatherText, type Weather, type WeatherKind } from '../lib/weather'
+import { BentoCard, NotesCard, PowerCard, ShortcutsCard } from './DashboardCards'
 import { InlineQuickAdd } from './QuickAdd'
 import { TaskCheckbox, useCompleteTask } from './TaskItem'
 
@@ -158,167 +159,186 @@ export function Dashboard() {
   }, [loadFeed, loadWeather])
 
   const plan = [...overdue, ...todays]
-  const sectionTitle = 'mb-3 flex h-7 items-center justify-between px-1 text-xs font-semibold tracking-wide text-muted uppercase'
-  const box = 'rounded-[22px] border border-glass-border bg-card'
+  const nowHm = new Date().toTimeString().slice(0, 5)
+  const next = todays.find((t) => t.time && t.time > nowHm)
+  const mailIcons = (
+    <>
+      {feed?.unread ? (
+        <a href="https://mail.google.com/mail/u/0/#inbox" target="_blank" rel="noreferrer" className="text-accent hover:underline">
+          {feed.unread} uleste →
+        </a>
+      ) : null}
+      <button onClick={() => { loadFeed(); loadWeather() }} disabled={loading} aria-label="Oppdater" className="grid size-7 place-items-center rounded-lg hover:bg-hover hover:text-fg">
+        <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
+      </button>
+      <button onClick={() => setSetup(true)} aria-label="Gmail-oppsett" className="grid size-7 place-items-center rounded-lg hover:bg-hover hover:text-fg">
+        <Settings2 size={13} />
+      </button>
+    </>
+  )
 
+  // Bento: 2 kolonner på mobil/nettbrett, 4 på brede skjermer. Kortene spenner over 1–2 kolonner.
   return (
-    <div className="flex flex-col gap-7">
-      <header>
-        <p className="mb-1 text-sm font-medium text-muted first-letter:uppercase">{formatLong(today)}</p>
-        <h1 className="text-[32px] leading-tight font-bold tracking-[-0.03em] md:text-[36px]">{greeting()}</h1>
-      </header>
-
-      {/* Vær og fremdrift */}
-      <div className="grid grid-cols-2 gap-3 md:gap-3.5">
-        <div className="flex items-center gap-3 rounded-[22px] border border-glass-border bg-[linear-gradient(135deg,rgb(125_211_252/0.32),var(--card))] p-4 md:gap-4 md:px-5">
-          <span className="shrink-0">{weather ? WEATHER_ICON[weatherKind(weather.code)](34) : <CloudSun size={34} className="text-muted" />}</span>
-          <div className="min-w-0">
-            <p className="text-[26px] leading-none font-bold">{weather ? `${weather.temp}°` : '–'}</p>
-            <p className="mt-1 truncate text-[13px] text-muted">
-              {weather ? (
-                <>
-                  {weatherText(weather.code)}
-                  <span className="hidden sm:inline"> i {place.name}</span> · {weather.max}°/{weather.min}°
-                </>
-              ) : weatherError ? (
-                'Utilgjengelig'
-              ) : (
-                'Henter …'
-              )}
-            </p>
-          </div>
+    <div className="grid grid-cols-2 gap-3 md:gap-4 xl:grid-cols-4">
+      {/* Hilsen og fremdrift */}
+      <section className="col-span-2 flex items-center justify-between gap-4 rounded-3xl border border-glass-border bg-[linear-gradient(120deg,rgb(139_125_245/0.26),var(--card))] p-5 md:px-7 md:py-6">
+        <div className="min-w-0">
+          <p className="mb-1 text-sm font-medium text-muted first-letter:uppercase">{formatLong(today)}</p>
+          <h1 className="text-[30px] leading-tight font-bold tracking-[-0.03em] md:text-[38px]">{greeting()}</h1>
+          <p className="mt-1 truncate text-sm text-muted">
+            {next ? (
+              <>
+                Neste: <span className="text-fg">{next.title}</span> kl {next.time}
+              </>
+            ) : plan.length ? (
+              `${plan.length} ${plan.length === 1 ? 'oppgave' : 'oppgaver'} igjen i dag`
+            ) : (
+              'Ingen oppgaver igjen i dag'
+            )}
+          </p>
         </div>
-        <div className="flex items-center gap-3 rounded-[22px] border border-glass-border bg-[linear-gradient(135deg,rgb(139_125_245/0.26),var(--card))] p-4 md:gap-4 md:px-5">
+        <div className="shrink-0 text-center">
           <span
-            className="grid size-10 shrink-0 place-items-center rounded-full md:size-11"
+            className="grid size-16 place-items-center rounded-full md:size-[76px]"
             style={{ background: `conic-gradient(var(--accent) 0 ${progress * 100}%, var(--accent-soft) ${progress * 100}% 100%)` }}
           >
-            <span className="grid size-7 place-items-center rounded-full bg-surface md:size-8">
-              {progress === 1 && <Check size={15} strokeWidth={3} className="text-accent" />}
+            <span className="grid size-12 place-items-center rounded-full bg-surface text-sm font-bold md:size-[58px] md:text-base">
+              {progress === 1 ? <Check size={20} strokeWidth={3} className="text-accent" /> : `${doneToday}/${doneToday + plan.length}`}
             </span>
           </span>
-          <div className="min-w-0">
-            <p className="text-[26px] leading-none font-bold">
-              {doneToday} av {doneToday + plan.length}
-            </p>
-            <p className="mt-1 truncate text-[13px] text-muted">
-              gjort<span className="hidden sm:inline"> i dag</span>
-              {overdue.length ? <span className="text-[#e5484d]"> · {overdue.length} forfalt</span> : ''}
-            </p>
-          </div>
+          <p className="mt-1.5 text-xs text-muted">gjort i dag</p>
         </div>
-      </div>
+      </section>
 
-      {/* Dagens plan som tidslinje */}
-      <section>
-        <h2 className={sectionTitle}>Dagens plan</h2>
+      {/* Vær */}
+      <BentoCard title={place.name} className="bg-[linear-gradient(135deg,rgb(56_189_248/0.2),var(--card))]">
+        {weather ? (
+          <>
+            <div className="flex items-center gap-2.5">
+              {WEATHER_ICON[weatherKind(weather.code)](30)}
+              <span className="text-[32px] leading-none font-bold tracking-tight md:text-4xl">{weather.temp}°</span>
+            </div>
+            <p className="mt-1.5 truncate text-[13px] text-muted">
+              {weatherText(weather.code)} · {weather.max}°/{weather.min}°
+            </p>
+            <div className="mt-auto grid grid-cols-2 gap-x-2 gap-y-1 pt-3 text-xs text-muted sm:flex sm:justify-between">
+              {weather.hours.slice(0, 4).map((h) => (
+                <span key={h.time}>
+                  {h.time.slice(0, 2)} · <b className="text-fg">{h.temp}°</b>
+                </span>
+              ))}
+            </div>
+          </>
+        ) : (
+          <p className="py-3 text-sm text-muted">{weatherError ? 'Været er utilgjengelig.' : 'Henter været …'}</p>
+        )}
+      </BentoCard>
+
+      {/* Strøm */}
+      <PowerCard />
+
+      {/* Dagens plan */}
+      <BentoCard title="Dagens plan" className="col-span-2 xl:row-span-1">
         {plan.length > 0 && (
-          <ul className={`${box} mb-2.5 px-4 md:px-5`}>
+          <ul className="mb-3">
             {plan.map((t) => (
               <PlanRow key={t.id} task={t} overdue={!!t.due && t.due < today} />
             ))}
           </ul>
         )}
-        <InlineQuickAdd defaults={{ due: today }} />
-      </section>
+        <div className="mt-auto">
+          <InlineQuickAdd defaults={{ due: today }} />
+        </div>
+      </BentoCard>
 
-      {/* E-post og nyheter side om side */}
-      <div className="grid gap-7 md:grid-cols-2 md:gap-3.5">
-        <section className="min-w-0">
-          <h2 className={sectionTitle}>
-            <span>Uleste e-poster</span>
-            {connected && (
-              <span className="flex items-center gap-1 normal-case">
-                {feed?.unread ? (
-                  <a href="https://mail.google.com/mail/u/0/#inbox" target="_blank" rel="noreferrer" className="text-accent hover:underline">
-                    {feed.unread} i Gmail →
-                  </a>
-                ) : null}
-                <button onClick={() => { loadFeed(); loadWeather() }} disabled={loading} aria-label="Oppdater" className="grid size-7 place-items-center rounded-lg hover:bg-hover hover:text-fg">
-                  <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
-                </button>
-                <button onClick={() => setSetup(true)} aria-label="Gmail-oppsett" className="grid size-7 place-items-center rounded-lg hover:bg-hover hover:text-fg">
-                  <Settings2 size={13} />
-                </button>
-              </span>
-            )}
-          </h2>
-          <div className={`${box} px-4 py-1.5`}>
-            {!connected ? (
-              <div className="py-4 text-center">
-                <Mail size={22} className="mx-auto mb-2 text-faint" />
-                <p className="mb-3 text-sm text-muted">Se de siste uleste e-postene dine her hver morgen.</p>
-                <button onClick={() => setSetup(true)} className="bg-accent-gradient rounded-xl px-4 py-2 text-sm font-semibold text-white">
-                  Koble til Gmail
-                </button>
-              </div>
-            ) : feed?.error || feed?.mailError ? (
-              <p className="py-3 text-sm text-[#e5484d]">
-                {feed.error === 'Ingen tilgang'
-                  ? 'Ingen tilgang: nøkkelen i skriptet (skriptegenskapen KEY) er ikke den samme som i appen. Åpne oppsettet med tannhjulet og kopier nøkkelen derfra.'
-                  : (feed.error ?? 'Gmail svarte med en feil. Prøv igjen, eller sjekk skriptet.')}
-              </p>
-            ) : !feed?.mails ? (
-              <p className="py-3 text-sm text-muted">Henter e-post …</p>
-            ) : feed.mails.length === 0 ? (
-              <p className="py-3 text-sm text-muted">Ingen uleste e-poster.</p>
-            ) : (
-              <ul>
-                {feed.mails.slice(0, 4).map((m, i) => (
-                  <li key={m.id} className={i ? 'border-t border-line' : ''}>
-                    <a href={m.url} target="_blank" rel="noreferrer" className="-mx-2 block rounded-xl px-2 py-2.5 hover:bg-hover">
-                      <p className="flex items-baseline gap-2 text-[13px] font-semibold">
-                        <span className="flex-1 truncate">{m.from}</span>
-                        <span className="shrink-0 text-xs font-normal text-faint">{timeAgo(m.date)}</span>
-                      </p>
-                      <p className="truncate text-[13px] text-muted">{m.subject}</p>
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            )}
+      {/* E-post */}
+      <BentoCard title="E-post" action={connected && mailIcons} className="col-span-2 md:col-span-1">
+        {!connected ? (
+          <div className="flex flex-1 flex-col items-center justify-center py-3 text-center">
+            <Mail size={22} className="mb-2 text-faint" />
+            <p className="mb-3 text-sm text-muted">Se de siste uleste e-postene dine her.</p>
+            <button onClick={() => setSetup(true)} className="bg-accent-gradient rounded-xl px-4 py-2 text-sm font-semibold text-white">
+              Koble til Gmail
+            </button>
           </div>
-        </section>
+        ) : feed?.error || feed?.mailError ? (
+          <p className="text-sm text-[#e5484d]">
+            {feed.error === 'Ingen tilgang'
+              ? 'Ingen tilgang: nøkkelen i skriptet (skriptegenskapen KEY) er ikke den samme som i appen. Åpne oppsettet med tannhjulet og kopier nøkkelen derfra.'
+              : (feed.error ?? 'Gmail svarte med en feil. Prøv igjen, eller sjekk skriptet.')}
+          </p>
+        ) : !feed?.mails ? (
+          <p className="text-sm text-muted">Henter e-post …</p>
+        ) : feed.mails.length === 0 ? (
+          <p className="text-sm text-muted">Ingen uleste e-poster.</p>
+        ) : (
+          <ul>
+            {feed.mails.slice(0, 5).map((m, i) => (
+              <li key={m.id} className={i ? 'border-t border-line' : ''}>
+                <a href={m.url} target="_blank" rel="noreferrer" className="-mx-2 block rounded-xl px-2 py-2 hover:bg-hover">
+                  <p className="flex items-baseline gap-2 text-[13px] font-semibold">
+                    <span className="flex-1 truncate">{m.from}</span>
+                    <span className="shrink-0 text-[11px] font-normal text-faint">{timeAgo(m.date)}</span>
+                  </p>
+                  <p className="truncate text-[13px] text-muted">{m.subject}</p>
+                </a>
+              </li>
+            ))}
+          </ul>
+        )}
+      </BentoCard>
 
-        <section className="min-w-0">
-          <h2 className={sectionTitle}>
-            <span>Nyheter</span>
-            {connected && (
-              <a href="https://www.nrk.no/mr/" target="_blank" rel="noreferrer" className="normal-case text-accent hover:underline">
-                NRK →
-              </a>
-            )}
-          </h2>
-          <div className={`${box} overflow-hidden`}>
-            {!connected ? (
-              <p className="p-4 text-sm text-muted">Nyheter fra NRK hentes av det samme skriptet som e-posten. Koble til Gmail for å se dem.</p>
-            ) : feed?.newsError ? (
-              <p className="p-4 text-sm text-[#e5484d]">Kunne ikke hente nyheter akkurat nå.</p>
-            ) : !feed?.news?.length ? (
-              <p className="p-4 text-sm text-muted">{feed?.news ? 'Ingen nyheter akkurat nå.' : 'Henter nyheter …'}</p>
-            ) : (
-              <>
-                <TopStory item={feed.news[0]} />
-                <ul className="px-4 pb-1.5">
-                  {feed.news.slice(1, 4).map((n, i) => (
-                    <li key={n.link} className={i ? 'border-t border-line' : ''}>
-                      <a href={n.link} target="_blank" rel="noreferrer" className="-mx-2 block rounded-xl px-2 py-2.5 hover:bg-hover">
-                        <p className="line-clamp-2 text-[13px] leading-snug font-semibold">{n.title}</p>
-                        <p className="mt-0.5 text-[11px] font-medium text-faint">
-                          {n.source} · {timeAgo(n.date)}
-                        </p>
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              </>
-            )}
-          </div>
-        </section>
-      </div>
+      {/* Notatblokk */}
+      <NotesCard settings={settings} onSave={save} className="col-span-2 md:col-span-1" />
+
+      {/* Snarveier */}
+      <ShortcutsCard settings={settings} onSave={save} className="col-span-2" />
+
+      {/* Nyheter */}
+      <BentoCard
+        title="Nyheter"
+        className="col-span-2"
+        action={
+          connected && (
+            <a href="https://www.nrk.no/mr/" target="_blank" rel="noreferrer" className="text-accent hover:underline">
+              NRK →
+            </a>
+          )
+        }
+      >
+        {!connected ? (
+          <p className="text-sm text-muted">Nyheter fra NRK hentes av det samme skriptet som e-posten. Koble til Gmail for å se dem.</p>
+        ) : feed?.newsError ? (
+          <p className="text-sm text-[#e5484d]">Kunne ikke hente nyheter akkurat nå.</p>
+        ) : !feed?.news?.length ? (
+          <p className="text-sm text-muted">{feed?.news ? 'Ingen nyheter akkurat nå.' : 'Henter nyheter …'}</p>
+        ) : (
+          <ul className="grid gap-3 sm:grid-cols-3">
+            {feed.news.slice(0, 3).map((n) => (
+              <li key={n.link}>
+                <a href={n.link} target="_blank" rel="noreferrer" className="group flex gap-3 sm:block">
+                  <span className="relative block h-20 w-24 shrink-0 overflow-hidden rounded-2xl sm:h-28 sm:w-full">
+                    {n.image ? (
+                      <img src={n.image} alt="" loading="lazy" className="size-full object-cover transition duration-500 group-hover:scale-105" />
+                    ) : (
+                      <span className="bg-accent-gradient block size-full" />
+                    )}
+                  </span>
+                  <span className="min-w-0">
+                    <span className="mt-0 block text-[11px] font-semibold tracking-wide text-accent uppercase sm:mt-2">
+                      {n.source.replace('NRK Møre og Romsdal', 'NRK MR')} · {timeAgo(n.date)}
+                    </span>
+                    <span className="line-clamp-2 text-[13.5px] leading-snug font-semibold group-hover:text-accent">{n.title}</span>
+                  </span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        )}
+      </BentoCard>
 
       {connected && fetchedAt > 0 && (
-        <p className="-mt-2 text-center text-xs text-faint">
+        <p className="col-span-2 text-center text-xs text-faint xl:col-span-4">
           Oppdatert kl {new Date(fetchedAt).toTimeString().slice(0, 5)} · oppdateres automatisk hver time
         </p>
       )}
@@ -344,26 +364,6 @@ function PlanRow({ task, overdue }: { task: Task; overdue: boolean }) {
       <span className={`min-w-0 flex-1 truncate text-[14.5px] ${checked ? 'text-faint line-through' : ''}`}>{task.title}</span>
       {task.reminder !== -1 && task.time && <Bell size={13} className="shrink-0 text-faint" aria-label="Påminnelse" />}
     </li>
-  )
-}
-
-/** Toppsaken med bilde og tittel over. */
-function TopStory({ item }: { item: NewsItem }) {
-  return (
-    <a href={item.link} target="_blank" rel="noreferrer" className="group relative block h-32 overflow-hidden">
-      {item.image ? (
-        <img src={item.image} alt="" loading="lazy" className="absolute inset-0 size-full object-cover transition duration-500 group-hover:scale-105" />
-      ) : (
-        <span className="bg-accent-gradient absolute inset-0" />
-      )}
-      <span className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
-      <span className="absolute inset-x-0 bottom-0 p-3.5">
-        <span className="mb-0.5 block text-[11px] font-semibold tracking-wide text-white/80 uppercase">
-          {item.source} · {timeAgo(item.date)}
-        </span>
-        <span className="line-clamp-2 text-[15px] leading-snug font-bold text-white">{item.title}</span>
-      </span>
-    </a>
   )
 }
 
