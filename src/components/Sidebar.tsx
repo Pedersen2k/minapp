@@ -118,7 +118,8 @@ export function Sidebar({ view, onNavigate, onSearch, theme, onTheme }: Props) {
   const open = tasks.filter((t) => !t.done)
   const is = (v: View) => JSON.stringify(v) === JSON.stringify(view)
   const countFor = (p: Project) => open.filter((t) => t.projectId === p.id).length
-  const labels = allLabels(tasks)
+  // Bare etiketter som brukes på åpne oppgaver. Ubrukte finnes fortsatt i søket.
+  const labels = allLabels(tasks).filter((l) => l.count > 0)
   const { editProject, editLabel } = useEdit()
 
   const themeIcon = { light: <Sun size={15} />, dark: <Moon size={15} />, system: <Monitor size={15} /> }
