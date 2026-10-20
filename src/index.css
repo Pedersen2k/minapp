@@ -166,3 +166,26 @@ body::before {
 @utility bg-accent-gradient {
   background: linear-gradient(135deg, var(--accent-2), var(--accent));
 }
+
+/*
+ * Ytelse på mobil: uskarphet bak paneler (backdrop-filter) er det eneste som gjør
+ * glassdesignet tungt. På berøringsskjermer slås den av, og panelene blir litt tettere
+ * i stedet, så uttrykket blir nesten likt.
+ */
+@media (pointer: coarse), (max-width: 767px) {
+  :root {
+    --glass: rgb(255 255 255 / 0.72);
+    --glass-strong: rgb(255 255 255 / 0.96);
+  }
+
+  .dark {
+    --glass: rgb(30 30 48 / 0.85);
+    --glass-strong: rgb(34 34 52 / 0.98);
+  }
+
+  .glass,
+  .glass-strong {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
