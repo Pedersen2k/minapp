@@ -127,7 +127,14 @@ function Panel({ task, projects, onClose, update, remove }: PanelProps) {
               {task.due && <ClearButton onClick={() => update({ due: undefined, recurrence: undefined })} />}
             </Row>
             <Row icon={<Clock size={16} />} label="Klokkeslett">
-              <input type="time" value={task.time ?? ''} onChange={(e) => update({ time: e.target.value || undefined })} className={control} aria-label="Klokkeslett" />
+              <input
+                type="time"
+                value={task.time ?? ''}
+                // Klokkeslett krever en dato for å kunne varsle; mangler den, brukes i dag.
+                onChange={(e) => update({ time: e.target.value || undefined, ...(e.target.value && !task.due ? { due: todayISO() } : {}) })}
+                className={control}
+                aria-label="Klokkeslett"
+              />
               {task.time && <ClearButton onClick={() => update({ time: undefined })} />}
             </Row>
             {task.time && (

@@ -112,6 +112,11 @@ export function parseQuickAdd(input: string, now = new Date()): ParsedTask {
 
   // Gjentakende oppgave uten dato starter i dag.
   if (out.recurrence && !out.due) out.due = today
+  // Klokkeslett uten dato: i dag, eller i morgen hvis klokkeslettet allerede er passert.
+  if (out.time && !out.due) {
+    const [h, m] = out.time.split(':').map(Number)
+    out.due = h * 60 + m > now.getHours() * 60 + now.getMinutes() ? today : addDays(today, 1)
+  }
 
   out.title = s.replace(/\s+/g, ' ').trim()
   return out
