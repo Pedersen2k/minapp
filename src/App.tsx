@@ -6,7 +6,7 @@ import { PageEditor } from './components/PageEditor'
 import { QuickAdd } from './components/QuickAdd'
 import { Sidebar, type Theme } from './components/Sidebar'
 import { TaskDetail } from './components/TaskDetail'
-import { TasksView, type UpcomingMode } from './components/TasksView'
+import { TasksView } from './components/TasksView'
 import { todayISO } from './lib/date'
 import { useRoute } from './lib/route'
 import { useStore } from './lib/store'
@@ -56,21 +56,6 @@ function Workspace() {
   const [drawer, setDrawer] = useState(false)
   const [palette, setPalette] = useState(false)
   const [quickAdd, setQuickAdd] = useState(false)
-  const [upcomingMode, setUpcomingModeState] = useState<UpcomingMode>(() => {
-    try {
-      return localStorage.getItem('minapp:upcoming') === 'calendar' ? 'calendar' : 'list'
-    } catch {
-      return 'list'
-    }
-  })
-  const setUpcomingMode = (m: UpcomingMode) => {
-    setUpcomingModeState(m)
-    try {
-      localStorage.setItem('minapp:upcoming', m)
-    } catch {
-      // ignorer
-    }
-  }
 
   const go = useCallback(
     (v: Parameters<typeof navigate>[0]) => {
@@ -111,10 +96,10 @@ function Workspace() {
         ? projects.find((p) => p.id === view.id)?.name ?? ''
         : view.type === 'label'
           ? `@${view.name}`
-          : { inbox: 'Innboks', today: 'I dag', upcoming: 'Kommende' }[view.type]
+          : { inbox: 'Innboks', today: 'I dag', upcoming: 'Kommende', calendar: 'Kalender' }[view.type]
 
   // Tavle og kalender trenger bredden; lister og sider leses best smalt.
-  const wide = (view.type === 'project' && projects.find((p) => p.id === view.id)?.view === 'board') || (view.type === 'upcoming' && upcomingMode === 'calendar')
+  const wide = (view.type === 'project' && projects.find((p) => p.id === view.id)?.view === 'board') || view.type === 'calendar'
 
   const quickAddDefaults =
     view.type === 'project' ? { projectId: view.id } : view.type === 'today' ? { due: todayISO() } : undefined
@@ -158,7 +143,7 @@ function Workspace() {
                   <p className="text-muted">Fant ikke siden.</p>
                 )
               ) : (
-                <TasksView view={view} onNavigate={go} upcomingMode={upcomingMode} onUpcomingMode={setUpcomingMode} />
+                <TasksView view={view} onNavigate={go} />
               )}
             </div>
           </div>

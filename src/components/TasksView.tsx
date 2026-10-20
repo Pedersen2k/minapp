@@ -1,4 +1,4 @@
-import { AtSign, CalendarDays, Check, ChevronRight, Columns3, FolderPlus, List as ListIcon, MoreHorizontal, Pencil, Sparkles, Trash2 } from 'lucide-react'
+import { AtSign, Check, ChevronRight, Columns3, FolderPlus, List as ListIcon, MoreHorizontal, Pencil, Sparkles, Trash2 } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { addDays, formatDue, formatLong, todayISO } from '../lib/date'
 import { defaultColumns } from '../lib/board'
@@ -95,16 +95,12 @@ function Segmented<T extends string>({ value, options, onChange }: { value: T; o
   )
 }
 
-export type UpcomingMode = 'list' | 'calendar'
-
 interface TasksViewProps {
   view: Exclude<View, { type: 'page' }>
   onNavigate: (v: View) => void
-  upcomingMode: UpcomingMode
-  onUpcomingMode: (m: UpcomingMode) => void
 }
 
-export function TasksView({ view, onNavigate, upcomingMode, onUpcomingMode }: TasksViewProps) {
+export function TasksView({ view, onNavigate }: TasksViewProps) {
   const store = useStore()
   const today = todayISO()
   const open = store.tasks.filter((t) => !t.done).sort(byTaskOrder)
@@ -137,30 +133,21 @@ export function TasksView({ view, onNavigate, upcomingMode, onUpcomingMode }: Ta
     )
   }
 
+  if (view.type === 'calendar') {
+    return (
+      <>
+        <Header title="Kalender" eyebrow="Planlegg dag for dag" />
+        <CalendarView />
+      </>
+    )
+  }
+
   if (view.type === 'upcoming') {
     const days = Array.from({ length: 14 }, (_, i) => addDays(today, i + 1))
     const later = open.filter((t) => t.due && t.due > days[days.length - 1]).sort(byDueThenOrder)
-    const toggle = (
-      <Segmented
-        value={upcomingMode}
-        onChange={onUpcomingMode}
-        options={[
-          { value: 'list', label: 'Liste', icon: <ListIcon size={15} /> },
-          { value: 'calendar', label: 'Kalender', icon: <CalendarDays size={15} /> },
-        ]}
-      />
-    )
-    if (upcomingMode === 'calendar') {
-      return (
-        <>
-          <Header title="Kommende" eyebrow="Kalender" actions={toggle} />
-          <CalendarView />
-        </>
-      )
-    }
     return (
       <>
-        <Header title="Kommende" eyebrow="De neste to ukene" actions={toggle} />
+        <Header title="Kommende" eyebrow="De neste to ukene" />
         {days.map((d, i) => {
           const tasks = open.filter((t) => t.due === d)
           if (tasks.length === 0 && i > 6) return null

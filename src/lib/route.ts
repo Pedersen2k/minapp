@@ -15,7 +15,7 @@ function parseHash(hash: string): Route {
   if (kind === 'project' && id) view = { type: 'project', id }
   else if (kind === 'page' && id) view = { type: 'page', id }
   else if (kind === 'label' && id) view = { type: 'label', name: decodeURIComponent(id) }
-  else if (kind === 'inbox' || kind === 'upcoming') view = { type: kind }
+  else if (kind === 'inbox' || kind === 'upcoming' || kind === 'calendar') view = { type: kind }
   return { view, taskId }
 }
 

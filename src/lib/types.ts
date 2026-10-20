@@ -70,6 +70,7 @@ export type View =
   | { type: 'inbox' }
   | { type: 'today' }
   | { type: 'upcoming' }
+  | { type: 'calendar' }
   | { type: 'project'; id: string }
   | { type: 'label'; name: string }
   | { type: 'page'; id: string }
