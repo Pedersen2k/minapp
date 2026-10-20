@@ -1,13 +1,15 @@
-import { Check, Cloud, CloudFog, CloudLightning, CloudRain, CloudSnow, CloudSun, Copy, ExternalLink, Mail, Newspaper, RefreshCw, Settings2, Sun, Wind, X } from 'lucide-react'
+import { Bell, Check, Cloud, CloudFog, CloudLightning, CloudRain, CloudSnow, CloudSun, Copy, ExternalLink, Mail, RefreshCw, Settings2, Sun, X } from 'lucide-react'
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import scriptCode from '../../integrations/google-apps-script/Code.gs?raw'
-import { formatLong, todayISO } from '../lib/date'
+import { formatDue, formatLong, todayISO } from '../lib/date'
 import { byTaskOrder } from '../lib/order'
 import { DEFAULT_WEATHER, useSettings, type Settings } from '../lib/settings'
 import { useStore } from '../lib/store'
+import type { Task } from '../lib/types'
+import { useOpenTask } from '../lib/ui-context'
 import { fetchWeather, weatherKind, weatherText, type Weather, type WeatherKind } from '../lib/weather'
 import { InlineQuickAdd } from './QuickAdd'
-import { List } from './TaskList'
+import { TaskCheckbox, useCompleteTask } from './TaskItem'
 
 interface MailItem {
   id: string
@@ -60,19 +62,6 @@ function timeAgo(iso: string): string {
   return d.toLocaleDateString('nb-NO', { day: 'numeric', month: 'short' })
 }
 
-function Card({ title, icon, action, children, className = '' }: { title: string; icon: ReactNode; action?: ReactNode; children: ReactNode; className?: string }) {
-  return (
-    <section className={`rounded-3xl border border-glass-border bg-card p-4 md:p-5 ${className}`}>
-      <header className="mb-3 flex items-center gap-2.5">
-        <span className="text-muted">{icon}</span>
-        <h2 className="flex-1 text-[15px] font-semibold">{title}</h2>
-        {action}
-      </header>
-      {children}
-    </section>
-  )
-}
-
 const WEATHER_ICON: Record<WeatherKind, (size: number) => ReactNode> = {
   sun: (s) => <Sun size={s} className="text-[#f59e0b]" />,
   partly: (s) => <CloudSun size={s} className="text-[#f59e0b]" />,
@@ -91,7 +80,7 @@ export function Dashboard() {
   const overdue = open.filter((t) => t.due && t.due < today).sort((a, b) => a.due!.localeCompare(b.due!) || byTaskOrder(a, b))
   const todays = open.filter((t) => t.due === today).sort((a, b) => (a.time ?? '99').localeCompare(b.time ?? '99') || byTaskOrder(a, b))
   const doneToday = tasks.filter((t) => t.done && t.completedAt && new Date(t.completedAt).toDateString() === new Date().toDateString()).length
-  const nextReminder = todays.find((t) => t.time && t.time > new Date().toTimeString().slice(0, 5))
+  const progress = doneToday + overdue.length + todays.length ? doneToday / (doneToday + overdue.length + todays.length) : 0
 
   // E-post og nyheter fra Apps Script-et. Siste svar vises med en gang mens nytt hentes.
   const [feed, setFeed] = useState<Feed | null>(() => {
@@ -134,163 +123,207 @@ export function Dashboard() {
       .catch(() => setWeatherError(true))
   }, [place.lat, place.lon])
 
-  const refresh = (
-    <button onClick={loadFeed} disabled={loading} aria-label="Oppdater" className="grid size-8 place-items-center rounded-lg text-muted hover:bg-hover hover:text-fg">
-      <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
-    </button>
-  )
+  const plan = [...overdue, ...todays]
+  const sectionTitle = 'mb-3 flex h-7 items-center justify-between px-1 text-xs font-semibold tracking-wide text-muted uppercase'
+  const box = 'rounded-[22px] border border-glass-border bg-card'
 
   return (
-    <>
-      <header className="mb-7">
+    <div className="flex flex-col gap-7">
+      <header>
         <p className="mb-1 text-sm font-medium text-muted first-letter:uppercase">{formatLong(today)}</p>
         <h1 className="text-[32px] leading-tight font-bold tracking-[-0.03em] md:text-[36px]">{greeting()}</h1>
-        <p className="mt-1.5 text-[15px] text-muted">
-          {overdue.length + todays.length === 0
-            ? 'Ingen oppgaver i dag – nyt dagen.'
-            : `${todays.length} ${todays.length === 1 ? 'oppgave' : 'oppgaver'} i dag${overdue.length ? `, ${overdue.length} forfalt` : ''}${doneToday ? ` · ${doneToday} gjort` : ''}`}
-          {nextReminder && ` · neste kl ${nextReminder.time}: ${nextReminder.title}`}
-        </p>
       </header>
 
-      <div className="grid gap-4 md:gap-5 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
-        {/* Venstre: oppgaver */}
-        <div className="flex flex-col gap-4 md:gap-5">
-          <Card title="I dag" icon={<Check size={17} />}>
-            {overdue.length > 0 && (
-              <>
-                <p className="mb-2 px-1 text-xs font-semibold text-[#e5484d]">Forfalt</p>
-                <List tasks={overdue} container={{ kind: 'static', id: 'dash-overdue' }} />
-              </>
-            )}
-            <List tasks={todays} container={{ kind: 'due', date: today }} showDate={false} />
-            <InlineQuickAdd defaults={{ due: today }} />
-          </Card>
+      {/* Vær og fremdrift */}
+      <div className="grid grid-cols-2 gap-3 md:gap-3.5">
+        <div className="flex items-center gap-3 rounded-[22px] border border-glass-border bg-[linear-gradient(135deg,rgb(125_211_252/0.32),var(--card))] p-4 md:gap-4 md:px-5">
+          <span className="shrink-0">{weather ? WEATHER_ICON[weatherKind(weather.code)](34) : <CloudSun size={34} className="text-muted" />}</span>
+          <div className="min-w-0">
+            <p className="text-[26px] leading-none font-bold">{weather ? `${weather.temp}°` : '–'}</p>
+            <p className="mt-1 truncate text-[13px] text-muted">
+              {weather ? (
+                <>
+                  {weatherText(weather.code)}
+                  <span className="hidden sm:inline"> i {place.name}</span> · {weather.max}°/{weather.min}°
+                </>
+              ) : weatherError ? (
+                'Utilgjengelig'
+              ) : (
+                'Henter …'
+              )}
+            </p>
+          </div>
         </div>
-
-        {/* Høyre: vær og e-post */}
-        <div className="flex flex-col gap-4 md:gap-5">
-          <Card title={`Været i ${place.name}`} icon={<CloudSun size={17} />}>
-            {weather ? (
-              <>
-                <div className="flex items-center gap-4">
-                  {WEATHER_ICON[weatherKind(weather.code)](44)}
-                  <div className="flex-1">
-                    <p className="text-4xl font-bold tracking-tight">{weather.temp}°</p>
-                    <p className="text-sm text-muted">{weatherText(weather.code)}</p>
-                  </div>
-                  <div className="text-right text-[13px] text-muted">
-                    <p>
-                      <span className="font-semibold text-fg">{weather.max}°</span> / {weather.min}°
-                    </p>
-                    <p>Nedbør {weather.rain}%</p>
-                    <p className="inline-flex items-center gap-1">
-                      <Wind size={12} /> {weather.wind} m/s
-                    </p>
-                  </div>
-                </div>
-                <div className="mt-4 grid grid-cols-6 gap-1 border-t border-line pt-3 text-center">
-                  {weather.hours.map((h) => (
-                    <div key={h.time} className="flex flex-col items-center gap-1 text-xs">
-                      <span className="text-muted">{h.time.slice(0, 2)}</span>
-                      {WEATHER_ICON[weatherKind(h.code)](18)}
-                      <span className="font-semibold">{h.temp}°</span>
-                    </div>
-                  ))}
-                </div>
-              </>
-            ) : (
-              <p className="py-4 text-sm text-muted">{weatherError ? 'Kunne ikke hente været akkurat nå.' : 'Henter været …'}</p>
-            )}
-          </Card>
-
-          <Card
-            title={feed?.unread ? `E-post · ${feed.unread} uleste` : 'E-post'}
-            icon={<Mail size={17} />}
-            action={
-              connected && (
-                <div className="flex items-center">
-                  {refresh}
-                  <button onClick={() => setSetup(true)} aria-label="Gmail-oppsett" className="grid size-8 place-items-center rounded-lg text-muted hover:bg-hover hover:text-fg">
-                    <Settings2 size={15} />
-                  </button>
-                </div>
-              )
-            }
+        <div className="flex items-center gap-3 rounded-[22px] border border-glass-border bg-[linear-gradient(135deg,rgb(139_125_245/0.26),var(--card))] p-4 md:gap-4 md:px-5">
+          <span
+            className="grid size-10 shrink-0 place-items-center rounded-full md:size-11"
+            style={{ background: `conic-gradient(var(--accent) 0 ${progress * 100}%, var(--accent-soft) ${progress * 100}% 100%)` }}
           >
+            <span className="grid size-7 place-items-center rounded-full bg-surface md:size-8">
+              {progress === 1 && <Check size={15} strokeWidth={3} className="text-accent" />}
+            </span>
+          </span>
+          <div className="min-w-0">
+            <p className="text-[26px] leading-none font-bold">
+              {doneToday} av {doneToday + plan.length}
+            </p>
+            <p className="mt-1 truncate text-[13px] text-muted">
+              gjort<span className="hidden sm:inline"> i dag</span>
+              {overdue.length ? <span className="text-[#e5484d]"> · {overdue.length} forfalt</span> : ''}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Dagens plan som tidslinje */}
+      <section>
+        <h2 className={sectionTitle}>Dagens plan</h2>
+        {plan.length > 0 && (
+          <ul className={`${box} mb-2.5 px-4 md:px-5`}>
+            {plan.map((t) => (
+              <PlanRow key={t.id} task={t} overdue={!!t.due && t.due < today} />
+            ))}
+          </ul>
+        )}
+        <InlineQuickAdd defaults={{ due: today }} />
+      </section>
+
+      {/* E-post og nyheter side om side */}
+      <div className="grid gap-7 md:grid-cols-2 md:gap-3.5">
+        <section className="min-w-0">
+          <h2 className={sectionTitle}>
+            <span>Uleste e-poster</span>
+            {connected && (
+              <span className="flex items-center gap-1 normal-case">
+                {feed?.unread ? (
+                  <a href="https://mail.google.com/mail/u/0/#inbox" target="_blank" rel="noreferrer" className="text-accent hover:underline">
+                    {feed.unread} i Gmail →
+                  </a>
+                ) : null}
+                <button onClick={loadFeed} disabled={loading} aria-label="Oppdater" className="grid size-7 place-items-center rounded-lg hover:bg-hover hover:text-fg">
+                  <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
+                </button>
+                <button onClick={() => setSetup(true)} aria-label="Gmail-oppsett" className="grid size-7 place-items-center rounded-lg hover:bg-hover hover:text-fg">
+                  <Settings2 size={13} />
+                </button>
+              </span>
+            )}
+          </h2>
+          <div className={`${box} px-4 py-1.5`}>
             {!connected ? (
-              <div className="py-2 text-center">
+              <div className="py-4 text-center">
+                <Mail size={22} className="mx-auto mb-2 text-faint" />
                 <p className="mb-3 text-sm text-muted">Se de siste uleste e-postene dine her hver morgen.</p>
                 <button onClick={() => setSetup(true)} className="bg-accent-gradient rounded-xl px-4 py-2 text-sm font-semibold text-white">
                   Koble til Gmail
                 </button>
               </div>
             ) : feed?.error || feed?.mailError ? (
-              <p className="text-sm text-[#e5484d]">
+              <p className="py-3 text-sm text-[#e5484d]">
                 {feed.error === 'Ingen tilgang'
                   ? 'Ingen tilgang: nøkkelen i skriptet (skriptegenskapen KEY) er ikke den samme som i appen. Åpne oppsettet med tannhjulet og kopier nøkkelen derfra.'
                   : (feed.error ?? 'Gmail svarte med en feil. Prøv igjen, eller sjekk skriptet.')}
               </p>
             ) : !feed?.mails ? (
-              <p className="py-4 text-sm text-muted">Henter e-post …</p>
+              <p className="py-3 text-sm text-muted">Henter e-post …</p>
             ) : feed.mails.length === 0 ? (
-              <p className="py-4 text-sm text-muted">Ingen uleste e-poster. Innboksen er under kontroll.</p>
+              <p className="py-3 text-sm text-muted">Ingen uleste e-poster.</p>
             ) : (
-              <ul className="-mx-2 flex flex-col">
-                {feed.mails.map((m) => (
-                  <li key={m.id}>
-                    <a href={m.url} target="_blank" rel="noreferrer" className="block rounded-xl px-2 py-2.5 hover:bg-hover">
-                      <div className="flex items-baseline gap-2">
-                        <span className="flex-1 truncate text-sm font-semibold">{m.from}</span>
-                        <span className="shrink-0 text-xs text-faint">{timeAgo(m.date)}</span>
-                      </div>
-                      <p className="truncate text-sm">{m.subject}</p>
-                      <p className="truncate text-xs text-muted">{m.snippet}</p>
+              <ul>
+                {feed.mails.slice(0, 4).map((m, i) => (
+                  <li key={m.id} className={i ? 'border-t border-line' : ''}>
+                    <a href={m.url} target="_blank" rel="noreferrer" className="-mx-2 block rounded-xl px-2 py-2.5 hover:bg-hover">
+                      <p className="flex items-baseline gap-2 text-[13px] font-semibold">
+                        <span className="flex-1 truncate">{m.from}</span>
+                        <span className="shrink-0 text-xs font-normal text-faint">{timeAgo(m.date)}</span>
+                      </p>
+                      <p className="truncate text-[13px] text-muted">{m.subject}</p>
                     </a>
                   </li>
                 ))}
               </ul>
             )}
-          </Card>
-        </div>
+          </div>
+        </section>
 
-        {/* Nyheter over hele bredden */}
-        <Card title="Nyheter" icon={<Newspaper size={17} />} action={connected && refresh} className="lg:col-span-2">
-          {!connected ? (
-            <p className="py-2 text-sm text-muted">Nyheter fra NRK hentes av det samme skriptet som e-posten. Koble til Gmail for å se dem.</p>
-          ) : feed?.newsError ? (
-            <p className="text-sm text-[#e5484d]">Kunne ikke hente nyheter akkurat nå.</p>
-          ) : !feed?.news ? (
-            <p className="py-4 text-sm text-muted">Henter nyheter …</p>
-          ) : (
-            <ul className="grid gap-2 md:grid-cols-2">
-              {feed.news.map((n) => (
-                <li key={n.link}>
-                  <a href={n.link} target="_blank" rel="noreferrer" className="flex gap-3 rounded-2xl p-2 hover:bg-hover">
-                    {n.image ? (
-                      <img src={n.image} alt="" loading="lazy" className="size-20 shrink-0 rounded-xl object-cover" />
-                    ) : (
-                      <span className="grid size-20 shrink-0 place-items-center rounded-xl bg-hover text-faint">
-                        <Newspaper size={22} />
-                      </span>
-                    )}
-                    <div className="min-w-0">
-                      <p className="mb-0.5 text-[11px] font-semibold tracking-wide text-accent uppercase">
-                        {n.source} · {timeAgo(n.date)}
-                      </p>
-                      <p className="line-clamp-2 text-sm leading-snug font-semibold">{n.title}</p>
-                      {n.summary && <p className="mt-0.5 line-clamp-2 text-xs text-muted">{n.summary}</p>}
-                    </div>
-                  </a>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Card>
+        <section className="min-w-0">
+          <h2 className={sectionTitle}>
+            <span>Nyheter</span>
+            {connected && (
+              <a href="https://www.nrk.no/mr/" target="_blank" rel="noreferrer" className="normal-case text-accent hover:underline">
+                NRK →
+              </a>
+            )}
+          </h2>
+          <div className={`${box} overflow-hidden`}>
+            {!connected ? (
+              <p className="p-4 text-sm text-muted">Nyheter fra NRK hentes av det samme skriptet som e-posten. Koble til Gmail for å se dem.</p>
+            ) : feed?.newsError ? (
+              <p className="p-4 text-sm text-[#e5484d]">Kunne ikke hente nyheter akkurat nå.</p>
+            ) : !feed?.news?.length ? (
+              <p className="p-4 text-sm text-muted">{feed?.news ? 'Ingen nyheter akkurat nå.' : 'Henter nyheter …'}</p>
+            ) : (
+              <>
+                <TopStory item={feed.news[0]} />
+                <ul className="px-4 pb-1.5">
+                  {feed.news.slice(1, 4).map((n, i) => (
+                    <li key={n.link} className={i ? 'border-t border-line' : ''}>
+                      <a href={n.link} target="_blank" rel="noreferrer" className="-mx-2 block rounded-xl px-2 py-2.5 hover:bg-hover">
+                        <p className="line-clamp-2 text-[13px] leading-snug font-semibold">{n.title}</p>
+                        <p className="mt-0.5 text-[11px] font-medium text-faint">
+                          {n.source} · {timeAgo(n.date)}
+                        </p>
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+          </div>
+        </section>
       </div>
 
       {setup && <GmailSetup settings={settings} onSave={save} onClose={() => setSetup(false)} />}
-    </>
+    </div>
+  )
+}
+
+/** Én rad i dagens plan: tidspunkt, avhuking og tittel. Klikk åpner oppgaven. */
+function PlanRow({ task, overdue }: { task: Task; overdue: boolean }) {
+  const openTask = useOpenTask()
+  const { checked, completing, complete } = useCompleteTask(task)
+  return (
+    <li
+      onClick={() => openTask(task.id)}
+      className={`flex cursor-pointer items-center gap-3.5 border-b border-line py-3 transition last:border-b-0 md:gap-4 ${completing ? 'opacity-40' : ''}`}
+    >
+      <span className={`w-12 shrink-0 text-[13px] font-semibold ${overdue ? 'text-[#e5484d]' : task.time ? 'text-accent' : 'font-normal text-faint'}`}>
+        {overdue ? formatDue(task.due!) : (task.time ?? 'I dag')}
+      </span>
+      <TaskCheckbox task={task} checked={checked} onClick={complete} size={18} />
+      <span className={`min-w-0 flex-1 truncate text-[14.5px] ${checked ? 'text-faint line-through' : ''}`}>{task.title}</span>
+      {task.reminder !== -1 && task.time && <Bell size={13} className="shrink-0 text-faint" aria-label="Påminnelse" />}
+    </li>
+  )
+}
+
+/** Toppsaken med bilde og tittel over. */
+function TopStory({ item }: { item: NewsItem }) {
+  return (
+    <a href={item.link} target="_blank" rel="noreferrer" className="group relative block h-32 overflow-hidden">
+      {item.image ? (
+        <img src={item.image} alt="" loading="lazy" className="absolute inset-0 size-full object-cover transition duration-500 group-hover:scale-105" />
+      ) : (
+        <span className="bg-accent-gradient absolute inset-0" />
+      )}
+      <span className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+      <span className="absolute inset-x-0 bottom-0 p-3.5">
+        <span className="mb-0.5 block text-[11px] font-semibold tracking-wide text-white/80 uppercase">
+          {item.source} · {timeAgo(item.date)}
+        </span>
+        <span className="line-clamp-2 text-[15px] leading-snug font-bold text-white">{item.title}</span>
+      </span>
+    </a>
   )
 }
 
