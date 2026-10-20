@@ -1,8 +1,9 @@
-import { Calendar, Check, Clock, Trash2 } from 'lucide-react'
+import { AlignLeft, Calendar, Check, Clock, ListChecks, Repeat, Trash2 } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { formatDue, todayISO } from '../lib/date'
 import { useStore } from '../lib/store'
 import type { Task } from '../lib/types'
+import { useOpenTask } from '../lib/ui-context'
 import { Dot, PRIORITY_COLOR } from './ui'
 
 interface Props {
@@ -11,29 +12,59 @@ interface Props {
   showDate?: boolean
 }
 
-export function TaskItem({ task, showProject = true, showDate = true }: Props) {
-  const { projects, toggleTask, updateTask, deleteTask } = useStore()
+export function TaskCheckbox({ task, checked, onClick, size = 18 }: { task: Task; checked: boolean; onClick: () => void; size?: number }) {
+  const color = PRIORITY_COLOR[task.priority]
+  return (
+    <button
+      onClick={(e) => {
+        e.stopPropagation()
+        onClick()
+      }}
+      aria-label={checked ? 'Marker som ikke fullført' : 'Fullfør'}
+      className="mt-0.5 grid shrink-0 place-items-center rounded-full border-[1.5px] transition hover:scale-110"
+      style={{
+        width: size,
+        height: size,
+        borderColor: color,
+        background: checked ? color : `color-mix(in srgb, ${color} 10%, transparent)`,
+      }}
+    >
+      {checked && <Check size={size * 0.6} strokeWidth={3.5} className="animate-pop text-white" />}
+    </button>
+  )
+}
+
+/** Håndterer avhuking med en kort animasjon før oppgaven forsvinner eller flyttes. */
+export function useCompleteTask(task: Task) {
+  const { toggleTask } = useStore()
   const [completing, setCompleting] = useState(false)
-  const [editing, setEditing] = useState(false)
+  const complete = () => {
+    if (task.done) {
+      toggleTask(task.id)
+      return
+    }
+    setCompleting(true)
+    setTimeout(() => {
+      toggleTask(task.id)
+      setCompleting(false)
+    }, 450)
+  }
+  return { checked: task.done || completing, completing, complete }
+}
+
+export function TaskItem({ task, showProject = true, showDate = true }: Props) {
+  const { projects, updateTask, deleteTask } = useStore()
+  const openTask = useOpenTask()
+  const { checked, completing, complete } = useCompleteTask(task)
   const dateRef = useRef<HTMLInputElement>(null)
   const project = projects.find((p) => p.id === task.projectId)
-  const checked = task.done || completing
-  const color = PRIORITY_COLOR[task.priority]
   const today = todayISO()
   const overdue = !task.done && task.due !== undefined && task.due < today
+  const subtasks = task.subtasks ?? []
+  const subDone = subtasks.filter((s) => s.done).length
 
-  const onCheck = () => {
-    if (task.done) {
-      setCompleting(false)
-      toggleTask(task.id)
-    } else {
-      // Kort pause så animasjonen rekker å vises før oppgaven forsvinner.
-      setCompleting(true)
-      setTimeout(() => toggleTask(task.id), 450)
-    }
-  }
-
-  const openDatePicker = () => {
+  const openDatePicker = (e: React.MouseEvent) => {
+    e.stopPropagation()
     const el = dateRef.current
     if (!el) return
     try {
@@ -45,60 +76,41 @@ export function TaskItem({ task, showProject = true, showDate = true }: Props) {
 
   return (
     <li
-      className={`group flex items-start gap-3 border-b border-line py-2.5 transition-opacity duration-300 ${
+      onClick={() => openTask(task.id)}
+      className={`group -mx-2 flex cursor-pointer items-start gap-3 rounded-lg border-b border-line px-2 py-2.5 transition hover:bg-hover ${
         completing && !task.done ? 'opacity-40' : ''
       }`}
     >
-      <button
-        onClick={onCheck}
-        aria-label={checked ? 'Marker som ikke fullført' : 'Fullfør'}
-        className="mt-0.5 grid size-[18px] shrink-0 place-items-center rounded-full border-[1.5px] transition hover:scale-110"
-        style={{
-          borderColor: color,
-          background: checked ? color : `color-mix(in srgb, ${color} 10%, transparent)`,
-        }}
-      >
-        {checked && <Check size={11} strokeWidth={3.5} className="animate-pop text-white" />}
-      </button>
+      <TaskCheckbox task={task} checked={checked} onClick={complete} />
 
       <div className="min-w-0 flex-1">
-        {editing ? (
-          <input
-            autoFocus
-            defaultValue={task.title}
-            onBlur={(e) => {
-              const v = e.target.value.trim()
-              if (v) updateTask(task.id, { title: v })
-              // Litt forsinkelse så knappene rekker å motta trykket på mobil.
-              setTimeout(() => setEditing(false), 150)
-            }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') e.currentTarget.blur()
-              if (e.key === 'Escape') setEditing(false)
-            }}
-            className="w-full bg-transparent text-[15px] leading-snug outline-none"
-          />
-        ) : (
-          <p
-            onClick={() => setEditing(true)}
-            className={`cursor-text text-[15px] leading-snug break-words ${checked ? 'text-faint line-through' : ''}`}
-          >
-            {task.title}
-          </p>
-        )}
+        <p className={`text-[15px] leading-snug break-words ${checked ? 'text-faint line-through' : ''}`}>{task.title}</p>
 
         <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs empty:hidden">
           {showDate && task.due && (
-            <button
-              onClick={openDatePicker}
-              className={`inline-flex items-center gap-1 ${overdue ? 'text-[#e5484d]' : task.due === today ? 'text-[#22a06b]' : 'text-muted'}`}
-            >
+            <span className={`inline-flex items-center gap-1 ${overdue ? 'text-[#e5484d]' : task.due === today ? 'text-[#22a06b]' : 'text-muted'}`}>
               <Calendar size={12} /> {formatDue(task.due)}
-            </button>
+              {task.recurrence && <Repeat size={11} className="ml-0.5" />}
+            </span>
+          )}
+          {!showDate && task.recurrence && (
+            <span className="inline-flex items-center text-muted">
+              <Repeat size={12} />
+            </span>
           )}
           {task.time && (
             <span className="inline-flex items-center gap-1 text-muted">
               <Clock size={12} /> {task.time}
+            </span>
+          )}
+          {subtasks.length > 0 && (
+            <span className={`inline-flex items-center gap-1 ${subDone === subtasks.length ? 'text-[#22a06b]' : 'text-muted'}`}>
+              <ListChecks size={12} /> {subDone}/{subtasks.length}
+            </span>
+          )}
+          {task.notes && (
+            <span className="inline-flex items-center text-muted">
+              <AlignLeft size={12} />
             </span>
           )}
           {showProject && project && (
@@ -109,17 +121,16 @@ export function TaskItem({ task, showProject = true, showDate = true }: Props) {
         </div>
       </div>
 
-      {/* På mobil vises handlingene bare når oppgaven redigeres, for et roligere uttrykk. */}
-      <div className={`relative items-center gap-0.5 transition md:flex md:opacity-0 md:group-hover:opacity-100 md:focus-within:opacity-100 ${editing ? 'flex' : 'hidden'}`}>
-        <button
-          onClick={openDatePicker}
-          aria-label="Endre dato"
-          className="grid size-7 place-items-center rounded-md text-faint hover:bg-hover hover:text-fg"
-        >
+      {/* Hurtighandlinger ved hover på PC. På mobil brukes detaljpanelet. */}
+      <div className="relative hidden items-center gap-0.5 transition md:flex md:opacity-0 md:group-hover:opacity-100 md:focus-within:opacity-100">
+        <button onClick={openDatePicker} aria-label="Endre dato" className="grid size-7 place-items-center rounded-md text-faint hover:bg-hover hover:text-fg">
           <Calendar size={15} />
         </button>
         <button
-          onClick={() => deleteTask(task.id)}
+          onClick={(e) => {
+            e.stopPropagation()
+            deleteTask(task.id)
+          }}
           aria-label="Slett"
           className="grid size-7 place-items-center rounded-md text-faint hover:bg-hover hover:text-[#e5484d]"
         >
@@ -130,6 +141,7 @@ export function TaskItem({ task, showProject = true, showDate = true }: Props) {
           type="date"
           tabIndex={-1}
           value={task.due ?? ''}
+          onClick={(e) => e.stopPropagation()}
           onChange={(e) => updateTask(task.id, { due: e.target.value || undefined })}
           className="pointer-events-none absolute size-0 opacity-0"
         />

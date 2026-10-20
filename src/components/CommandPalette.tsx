@@ -19,9 +19,10 @@ interface Props {
   onNavigate: (v: View) => void
   onNewTask: () => void
   onToggleTheme: () => void
+  onOpenTask: (id: string) => void
 }
 
-export function CommandPalette({ onClose, onNavigate, onNewTask, onToggleTheme }: Props) {
+export function CommandPalette({ onClose, onNavigate, onNewTask, onToggleTheme, onOpenTask }: Props) {
   const { projects, pages, tasks, addPage } = useStore()
   const [query, setQuery] = useState('')
   const [index, setIndex] = useState(0)
@@ -52,7 +53,11 @@ export function CommandPalette({ onClose, onNavigate, onNewTask, onToggleTheme }
           label: t.title,
           hint: t.due ? formatDue(t.due) : undefined,
           icon: <CheckCircle2 size={16} />,
-          run: go(project ? { type: 'project', id: project.id } : t.due ? { type: 'today' } : { type: 'inbox' }),
+          run: () => {
+            onNavigate(project ? { type: 'project', id: project.id } : t.due ? { type: 'today' } : { type: 'inbox' })
+            // Vent til visningen er byttet, så detaljpanelet legges oppå riktig liste.
+            setTimeout(() => onOpenTask(t.id), 0)
+          },
         }
       })
     const pageText: Item[] = pages
@@ -66,7 +71,7 @@ export function CommandPalette({ onClose, onNavigate, onNewTask, onToggleTheme }
         run: go({ type: 'page', id: p.id }),
       }))
     return [...matches, ...taskMatches, ...pageText]
-  }, [query, projects, pages, tasks, addPage, onNavigate, onNewTask, onToggleTheme])
+  }, [query, projects, pages, tasks, addPage, onNavigate, onNewTask, onToggleTheme, onOpenTask])
 
   const run = (item?: Item) => {
     if (!item) return

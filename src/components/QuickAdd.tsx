@@ -1,7 +1,8 @@
-import { Calendar, Clock, Flag, Plus } from 'lucide-react'
+import { Calendar, Clock, Flag, Plus, Repeat } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { formatDue } from '../lib/date'
 import { parseQuickAdd } from '../lib/parse'
+import { RECURRENCE_LABEL } from '../lib/recurrence'
 import { useStore } from '../lib/store'
 import { Chip, Dot, PRIORITY_COLOR } from './ui'
 
@@ -39,7 +40,7 @@ export function QuickAdd({ defaults, autoFocus, onCancel, onAdded }: Props) {
     if (parsed.project && !matchedProject) {
       projectId = addProject(parsed.project.charAt(0).toUpperCase() + parsed.project.slice(1)).id
     }
-    addTask({ title: parsed.title, due, time: parsed.time, priority: parsed.priority ?? 4, projectId })
+    addTask({ title: parsed.title, due, time: parsed.time, priority: parsed.priority ?? 4, projectId, recurrence: parsed.recurrence })
     setText('')
     onAdded?.()
   }
@@ -68,6 +69,11 @@ export function QuickAdd({ defaults, autoFocus, onCancel, onAdded }: Props) {
                 <Calendar size={12} /> {formatDue(due)}
               </Chip>
             )}
+            {parsed.recurrence && (
+              <Chip color="#6a5ae0">
+                <Repeat size={12} /> {RECURRENCE_LABEL[parsed.recurrence]}
+              </Chip>
+            )}
             {parsed.time && (
               <Chip color="#22a06b">
                 <Clock size={12} /> {parsed.time}
@@ -86,7 +92,7 @@ export function QuickAdd({ defaults, autoFocus, onCancel, onAdded }: Props) {
             )}
           </>
         ) : (
-          <span className="text-xs text-faint">Prøv: i morgen · fredag · 24.12 · kl 14 · #prosjekt · p1</span>
+          <span className="text-xs text-faint">Prøv: i morgen · fredag · kl 14 · hver mandag · #prosjekt · p1</span>
         )}
       </div>
       <div className="mt-3 flex justify-end gap-2 border-t border-line pt-3">

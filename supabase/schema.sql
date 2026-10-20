@@ -18,6 +18,9 @@ create table if not exists public.tasks (
   time text,
   priority smallint not null default 4,
   project_id uuid references public.projects on delete cascade,
+  notes text,
+  recurrence text check (recurrence in ('daily', 'weekdays', 'weekly', 'biweekly', 'monthly', 'yearly')),
+  subtasks jsonb not null default '[]',
   created_at timestamptz not null default now(),
   completed_at timestamptz,
   updated_at timestamptz not null default now()

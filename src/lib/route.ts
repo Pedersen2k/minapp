@@ -1,25 +1,65 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { View } from './types'
 
-function parseHash(hash: string): View {
-  const [, kind, id] = hash.replace(/^#/, '').split('/')
-  if (kind === 'project' && id) return { type: 'project', id }
-  if (kind === 'page' && id) return { type: 'page', id }
-  if (kind === 'inbox' || kind === 'upcoming') return { type: kind }
-  return { type: 'today' }
+interface Route {
+  view: View
+  taskId: string | null
+}
+
+// Format: #/today, #/project/<id>, #/page/<id>, med valgfri ?t=<oppgave-id> for åpent detaljpanel.
+function parseHash(hash: string): Route {
+  const [path, query] = hash.replace(/^#/, '').split('?')
+  const [, kind, id] = path.split('/')
+  const taskId = new URLSearchParams(query).get('t')
+  let view: View = { type: 'today' }
+  if (kind === 'project' && id) view = { type: 'project', id }
+  else if (kind === 'page' && id) view = { type: 'page', id }
+  else if (kind === 'inbox' || kind === 'upcoming') view = { type: kind }
+  return { view, taskId }
 }
 
 export function viewToHash(v: View): string {
   return v.type === 'project' || v.type === 'page' ? `#/${v.type}/${v.id}` : `#/${v.type}`
 }
 
-/** Visningen lagres i URL-en, så tilbake-knappen/-sveipet fungerer på mobil. */
-export function useRoute(): [View, (v: View) => void] {
-  const [view, setView] = useState<View>(() => parseHash(location.hash))
+/** Visning og åpen oppgave lagres i URL-en, så tilbake-knappen/-sveipet fungerer på mobil. */
+export function useRoute() {
+  const [route, setRoute] = useState<Route>(() => parseHash(location.hash))
+  const openedInApp = useRef(false)
+
   useEffect(() => {
-    const onHash = () => setView(parseHash(location.hash))
+    const onHash = () => setRoute(parseHash(location.hash))
     window.addEventListener('hashchange', onHash)
     return () => window.removeEventListener('hashchange', onHash)
   }, [])
-  return [view, (v) => { location.hash = viewToHash(v) }]
+
+  const navigate = useCallback((v: View) => {
+    openedInApp.current = false
+    location.hash = viewToHash(v)
+  }, [])
+
+  const openTask = useCallback((id: string) => {
+    const base = viewToHash(parseHash(location.hash).view)
+    if (parseHash(location.hash).taskId) {
+      // Bytt oppgave uten å lage et nytt steg i historikken.
+      history.replaceState(null, '', `${base}?t=${id}`)
+      setRoute(parseHash(location.hash))
+    } else {
+      openedInApp.current = true
+      location.hash = `${base}?t=${id}`
+    }
+  }, [])
+
+  const closeTask = useCallback(() => {
+    if (!parseHash(location.hash).taskId) return
+    if (openedInApp.current) {
+      openedInApp.current = false
+      history.back()
+    } else {
+      history.replaceState(null, '', viewToHash(parseHash(location.hash).view))
+      setRoute(parseHash(location.hash))
+    }
+  }, [])
+
+  return { view: route.view, taskId: route.taskId, navigate, openTask, closeTask }
 }

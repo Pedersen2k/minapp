@@ -49,6 +49,9 @@ function toRow(table: Table, item: Item): Row {
       time: t.time ?? null,
       priority: t.priority,
       project_id: t.projectId ?? null,
+      notes: t.notes ?? null,
+      recurrence: t.recurrence ?? null,
+      subtasks: t.subtasks ?? [],
       created_at: iso(t.createdAt),
       completed_at: t.completedAt ? iso(t.completedAt) : null,
       updated_at: now,
@@ -72,14 +75,18 @@ function fromRow(table: Table, r: Row): Item {
     if (r.time) t.time = r.time as string
     if (r.project_id) t.projectId = r.project_id as string
     if (r.completed_at) t.completedAt = ms(r.completed_at)
+    if (r.notes) t.notes = r.notes as string
+    if (r.recurrence) t.recurrence = r.recurrence as Task['recurrence']
+    if (Array.isArray(r.subtasks) && r.subtasks.length > 0) t.subtasks = r.subtasks as Task['subtasks']
     return t
   }
   return { id: r.id, title: r.title, icon: r.icon, blocks: r.blocks, updatedAt: ms(r.updated_at) } as Page
 }
 
-// Sammenligner uavhengig av nøkkelrekkefølge og manglende/undefined felt.
+// Sammenligner uavhengig av nøkkelrekkefølge, og behandler tomme felt (undefined, '', []) som like.
+const isEmpty = (v: unknown) => v === undefined || v === null || v === '' || (Array.isArray(v) && v.length === 0)
 function same(a: Item, b: Item): boolean {
-  const norm = (x: Item) => JSON.stringify(Object.entries(x).filter(([, v]) => v !== undefined).sort(([k1], [k2]) => k1.localeCompare(k2)))
+  const norm = (x: Item) => JSON.stringify(Object.entries(x).filter(([, v]) => !isEmpty(v)).sort(([k1], [k2]) => k1.localeCompare(k2)))
   return norm(a) === norm(b)
 }
 

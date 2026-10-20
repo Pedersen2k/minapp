@@ -1,5 +1,6 @@
 import { Check, Heading1, Heading2, List, ListTodo, Quote, Trash2, Type } from 'lucide-react'
 import { useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
+import { AutoTextarea } from './AutoTextarea'
 import { uid } from '../lib/id'
 import { useStore } from '../lib/store'
 import type { Block, BlockType, Page } from '../lib/types'
@@ -282,40 +283,5 @@ export function PageEditor({ page, onDeleted }: { page: Page; onDeleted: () => v
       </div>
       <div onClick={onClickBelow} className="min-h-32 flex-1 cursor-text" />
     </div>
-  )
-}
-
-interface AutoTextareaProps {
-  ref: (el: HTMLTextAreaElement | null) => void
-  value: string
-  placeholder: string
-  className: string
-  onChange: (v: string) => void
-  onKeyDown: (e: KeyboardEvent<HTMLTextAreaElement>) => void
-  onFocus: () => void
-  onBlur: () => void
-}
-
-/** Tekstfelt som vokser med innholdet. */
-function AutoTextarea({ ref, value, onChange, className, ...rest }: AutoTextareaProps) {
-  const inner = useRef<HTMLTextAreaElement | null>(null)
-  useLayoutEffect(() => {
-    const el = inner.current
-    if (!el) return
-    el.style.height = '0px'
-    el.style.height = `${el.scrollHeight}px`
-  }, [value, className])
-  return (
-    <textarea
-      ref={(el) => {
-        inner.current = el
-        ref(el)
-      }}
-      rows={1}
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      className={`w-full resize-none overflow-hidden bg-transparent outline-none placeholder:text-faint ${className}`}
-      {...rest}
-    />
   )
 }

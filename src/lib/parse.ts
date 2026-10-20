@@ -1,5 +1,5 @@
 import { addDays, toISO, WEEKDAYS } from './date'
-import type { Priority } from './types'
+import type { Priority, Recurrence } from './types'
 
 export interface ParsedTask {
   title: string
@@ -7,6 +7,7 @@ export interface ParsedTask {
   time?: string
   priority?: Priority
   project?: string
+  recurrence?: Recurrence
 }
 
 const MONTH_PREFIX: Record<string, number> = {
@@ -54,6 +55,32 @@ export function parseQuickAdd(input: string, now = new Date()): ParsedTask {
     out.time = `${pad(h)}:${pad(min)}`
   })
 
+  // Gjentakelse først, så «hver mandag» ikke tolkes som bare «mandag».
+  const weekdayRe = WEEKDAYS.join('|')
+  const nextWeekday = (name: string, includeToday: boolean) => {
+    const target = WEEKDAYS.indexOf(name.toLowerCase())
+    const delta = (target - now.getDay() + 7) % 7
+    return addDays(today, delta === 0 && !includeToday ? 7 : delta)
+  }
+  const isWeekend = [0, 6].includes(now.getDay())
+  const recur = (re: RegExp, rule: Recurrence, due?: (m: RegExpMatchArray) => string) => {
+    if (out.recurrence) return
+    take(re, (m) => {
+      out.recurrence = rule
+      if (due) out.due = due(m)
+    })
+  }
+  recur(new RegExp(`\\shver\\s(${weekdayRe})(?=\\s)`, 'iu'), 'weekly', (m) => nextWeekday(m[1], true))
+  recur(new RegExp(`\\sannenhver\\s(${weekdayRe})(?=\\s)`, 'iu'), 'biweekly', (m) => nextWeekday(m[1], true))
+  recur(/\s(hver\sukedag|hver\shverdag|alle\shverdager|hverdager)(?=\s)/iu, 'weekdays', () =>
+    isWeekend ? nextWeekday('mandag', false) : today,
+  )
+  recur(/\shver\s?dag(?=\s)/iu, 'daily')
+  recur(/\s(annenhver\suke|hver\s2\.?\suke)(?=\s)/iu, 'biweekly')
+  recur(/\shver\suke(?=\s)/iu, 'weekly')
+  recur(/\shver\s(måned|mnd)(?=\s)/iu, 'monthly')
+  recur(/\shvert\sår(?=\s)/iu, 'yearly')
+
   dateRule(/\si\s?dag(?=\s)/iu, () => today)
   dateRule(/\si\s?overmorgen(?=\s)/iu, () => addDays(today, 2))
   dateRule(/\si\s?morgen(?=\s)/iu, () => addDays(today, 1))
@@ -73,6 +100,9 @@ export function parseQuickAdd(input: string, now = new Date()): ParsedTask {
   dateRule(/\s(\d{1,2})\.?\s(jan|feb|mar|apr|mai|jun|jul|aug|sep|okt|nov|des)\p{L}*(?=\s)/iu, (m) =>
     buildDate(now, Number(m[1]), MONTH_PREFIX[m[2].toLowerCase()]),
   )
+
+  // Gjentakende oppgave uten dato starter i dag.
+  if (out.recurrence && !out.due) out.due = today
 
   out.title = s.replace(/\s+/g, ' ').trim()
   return out

@@ -1,5 +1,13 @@
 export type Priority = 1 | 2 | 3 | 4
 
+export type Recurrence = 'daily' | 'weekdays' | 'weekly' | 'biweekly' | 'monthly' | 'yearly'
+
+export interface Subtask {
+  id: string
+  title: string
+  done: boolean
+}
+
 export interface Task {
   id: string
   title: string
@@ -8,6 +16,9 @@ export interface Task {
   time?: string // HH:MM
   priority: Priority
   projectId?: string
+  notes?: string
+  recurrence?: Recurrence
+  subtasks?: Subtask[]
   createdAt: number
   completedAt?: number
 }

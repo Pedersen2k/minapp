@@ -5,10 +5,12 @@ import { Login } from './components/Login'
 import { PageEditor } from './components/PageEditor'
 import { QuickAdd } from './components/QuickAdd'
 import { Sidebar, type Theme } from './components/Sidebar'
+import { TaskDetail } from './components/TaskDetail'
 import { TasksView } from './components/TasksView'
 import { todayISO } from './lib/date'
 import { useRoute } from './lib/route'
 import { useStore } from './lib/store'
+import { OpenTaskContext } from './lib/ui-context'
 
 const THEME_KEY = 'minapp:theme'
 
@@ -48,7 +50,7 @@ export default function App() {
 
 function Workspace() {
   const { pages, projects } = useStore()
-  const [view, navigate] = useRoute()
+  const { view, navigate, taskId, openTask, closeTask } = useRoute()
   const [theme, setTheme] = useTheme()
   const [drawer, setDrawer] = useState(false)
   const [palette, setPalette] = useState(false)
@@ -78,11 +80,12 @@ function Workspace() {
       } else if (e.key === 'Escape') {
         setQuickAdd(false)
         setDrawer(false)
+        closeTask()
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [])
+  }, [closeTask])
 
   const page = view.type === 'page' ? pages.find((p) => p.id === view.id) : undefined
   const mobileTitle =
@@ -96,6 +99,7 @@ function Workspace() {
     view.type === 'project' ? { projectId: view.id } : view.type === 'today' ? { due: todayISO() } : undefined
 
   return (
+    <OpenTaskContext.Provider value={openTask}>
     <div className="flex h-full">
       {/* Sidemeny: fast på PC, skuff på mobil */}
       <aside className="hidden w-[264px] shrink-0 border-r border-line md:block">
@@ -156,9 +160,12 @@ function Workspace() {
         </div>
       )}
 
+      {taskId && <TaskDetail taskId={taskId} onClose={closeTask} />}
+
       {palette && (
-        <CommandPalette onClose={() => setPalette(false)} onNavigate={go} onNewTask={openQuickAdd} onToggleTheme={toggleTheme} />
+        <CommandPalette onClose={() => setPalette(false)} onNavigate={go} onNewTask={openQuickAdd} onToggleTheme={toggleTheme} onOpenTask={openTask} />
       )}
     </div>
+    </OpenTaskContext.Provider>
   )
 }

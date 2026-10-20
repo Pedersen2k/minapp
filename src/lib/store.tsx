@@ -1,5 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { todayISO } from './date'
 import { uid } from './id'
+import { nextOccurrence } from './recurrence'
 import { seedData } from './seed'
 import { useSync } from './sync'
 import type { AppData, Page, Project, Task } from './types'
@@ -44,9 +46,18 @@ function useStoreValue() {
   const toggleTask = useCallback((id: string) => {
     setData((d) => ({
       ...d,
-      tasks: d.tasks.map((t) =>
-        t.id === id ? { ...t, done: !t.done, completedAt: t.done ? undefined : Date.now() } : t,
-      ),
+      tasks: d.tasks.map((t) => {
+        if (t.id !== id) return t
+        // Gjentakende oppgave: flytt til neste gang i stedet for å fullføre.
+        if (!t.done && t.recurrence) {
+          return {
+            ...t,
+            due: nextOccurrence(t.due, t.recurrence, todayISO()),
+            subtasks: t.subtasks?.map((s) => ({ ...s, done: false })),
+          }
+        }
+        return { ...t, done: !t.done, completedAt: t.done ? undefined : Date.now() }
+      }),
     }))
   }, [])
 
