@@ -9,6 +9,7 @@ import type { Task } from '../lib/types'
 import { useOpenTask } from '../lib/ui-context'
 import { fetchWeather, weatherKind, weatherText, type Weather, type WeatherKind } from '../lib/weather'
 import { BentoCard, NotesCard, PowerCard, ShortcutsCard } from './DashboardCards'
+import { DashboardGrid, type CardId } from './DashboardGrid'
 import { InlineQuickAdd } from './QuickAdd'
 import { TaskCheckbox, useCompleteTask } from './TaskItem'
 
@@ -177,11 +178,10 @@ export function Dashboard() {
     </>
   )
 
-  // Bento: 2 kolonner på mobil/nettbrett, 4 på brede skjermer. Kortene spenner over 1–2 kolonner.
-  return (
-    <div className="grid grid-cols-2 gap-3 md:gap-4 xl:grid-cols-4">
-      {/* Hilsen og fremdrift */}
-      <section className="col-span-2 flex items-center justify-between gap-4 rounded-3xl border border-glass-border bg-[linear-gradient(120deg,rgb(139_125_245/0.26),var(--card))] p-5 md:px-7 md:py-6">
+  // Kortene på dashboardet. Rekkefølge, størrelse og synlighet styres av brukeren (DashboardGrid).
+  const cards: Record<CardId, ReactNode> = {
+    hero: (
+      <section className="flex h-full items-center justify-between gap-4 rounded-3xl border border-glass-border bg-[linear-gradient(120deg,rgb(139_125_245/0.26),var(--card))] p-5 md:px-7 md:py-6">
         <div className="min-w-0">
           <p className="mb-1 text-sm font-medium text-muted first-letter:uppercase">{formatLong(today)}</p>
           <h1 className="text-[30px] leading-tight font-bold tracking-[-0.03em] md:text-[38px]">{greeting()}</h1>
@@ -209,9 +209,9 @@ export function Dashboard() {
           <p className="mt-1.5 text-xs text-muted">gjort i dag</p>
         </div>
       </section>
-
-      {/* Vær */}
-      <BentoCard title={place.name} className="bg-[linear-gradient(135deg,rgb(56_189_248/0.2),var(--card))]">
+    ),
+    weather: (
+      <BentoCard title={place.name} className="h-full bg-[linear-gradient(135deg,rgb(56_189_248/0.2),var(--card))]">
         {weather ? (
           <>
             <div className="flex items-center gap-2.5">
@@ -233,12 +233,12 @@ export function Dashboard() {
           <p className="py-3 text-sm text-muted">{weatherError ? 'Været er utilgjengelig.' : 'Henter været …'}</p>
         )}
       </BentoCard>
-
-      {/* Strøm */}
-      <PowerCard />
-
-      {/* Dagens plan */}
-      <BentoCard title="Dagens plan" className="col-span-2 xl:row-span-1">
+    ),
+    power: (
+      <PowerCard className="h-full" />
+    ),
+    plan: (
+      <BentoCard title="Dagens plan" className="h-full">
         {plan.length > 0 && (
           <ul className="mb-3">
             {plan.map((t) => (
@@ -250,9 +250,9 @@ export function Dashboard() {
           <InlineQuickAdd defaults={{ due: today }} />
         </div>
       </BentoCard>
-
-      {/* E-post */}
-      <BentoCard title="E-post" action={connected && mailIcons} className="col-span-2 md:col-span-1">
+    ),
+    mail: (
+      <BentoCard title="E-post" action={connected && mailIcons} className="h-full">
         {!connected ? (
           <div className="flex flex-1 flex-col items-center justify-center py-3 text-center">
             <Mail size={22} className="mb-2 text-faint" />
@@ -287,17 +287,17 @@ export function Dashboard() {
           </ul>
         )}
       </BentoCard>
-
-      {/* Notatblokk */}
-      <NotesCard settings={settings} onSave={save} className="col-span-2 md:col-span-1" />
-
-      {/* Snarveier */}
-      <ShortcutsCard settings={settings} onSave={save} className="col-span-2" />
-
-      {/* Nyheter */}
+    ),
+    notes: (
+      <NotesCard settings={settings} onSave={save} className="h-full" />
+    ),
+    shortcuts: (
+      <ShortcutsCard settings={settings} onSave={save} className="h-full" />
+    ),
+    news: (
       <BentoCard
         title="Nyheter"
-        className="col-span-2"
+        className="h-full"
         action={
           connected && (
             <a href="https://www.nrk.no/mr/" target="_blank" rel="noreferrer" className="text-accent hover:underline">
@@ -336,15 +336,19 @@ export function Dashboard() {
           </ul>
         )}
       </BentoCard>
+    ),
+  }
 
+  return (
+    <>
+      <DashboardGrid cards={cards} layout={settings.dashboard} onLayout={(dashboard) => save({ dashboard })} />
       {connected && fetchedAt > 0 && (
-        <p className="col-span-2 text-center text-xs text-faint xl:col-span-4">
+        <p className="mt-1 text-center text-xs text-faint">
           Oppdatert kl {new Date(fetchedAt).toTimeString().slice(0, 5)} · oppdateres automatisk hver time
         </p>
       )}
-
       {setup && <GmailSetup settings={settings} onSave={save} onClose={() => setSetup(false)} />}
-    </div>
+    </>
   )
 }
 

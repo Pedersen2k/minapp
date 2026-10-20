@@ -13,6 +13,14 @@ export interface Settings {
   weather?: { name: string; lat: number; lon: number }
   notes?: string
   shortcuts?: Shortcut[]
+  dashboard?: DashboardLayout
+}
+
+/** Brukerens oppsett av «Min dag»: rekkefølge, skjulte kort og størrelse per kort. */
+export interface DashboardLayout {
+  order: string[]
+  hidden: string[]
+  sizes: Record<string, 'small' | 'wide'>
 }
 
 export const DEFAULT_WEATHER = { name: 'Ålesund', lat: 62.4723, lon: 6.1549 }
