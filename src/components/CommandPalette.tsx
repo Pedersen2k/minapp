@@ -1,6 +1,6 @@
 import { AtSign, CalendarDays, CalendarRange, CheckCircle2, FilePlus, Inbox, ListPlus, Moon, Search, Sun } from 'lucide-react'
 import { useMemo, useState, type ReactNode } from 'react'
-import { formatDue } from '../lib/date'
+import { formatDue, todayISO } from '../lib/date'
 import { allLabels, labelColor } from '../lib/labels'
 import { useStore } from '../lib/store'
 import type { View } from '../lib/types'
@@ -58,7 +58,7 @@ export function CommandPalette({ onClose, onNavigate, onNewTask, onToggleTheme, 
           hint: t.due ? formatDue(t.due) : undefined,
           icon: <CheckCircle2 size={16} />,
           run: () => {
-            onNavigate(project ? { type: 'project', id: project.id } : t.due ? { type: 'today' } : { type: 'inbox' })
+            onNavigate(project ? { type: 'project', id: project.id } : t.due ? (t.due <= todayISO() ? { type: 'today' } : { type: 'upcoming' }) : t.labels?.length ? { type: 'label', name: t.labels[0] } : { type: 'inbox' })
             // Vent til visningen er byttet, så detaljpanelet legges oppå riktig liste.
             setTimeout(() => onOpenTask(t.id), 0)
           },

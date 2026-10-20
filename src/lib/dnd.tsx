@@ -14,6 +14,7 @@ import {
 import { arrayMove } from '@dnd-kit/sortable'
 import { useState, type ReactNode } from 'react'
 import { todayISO } from './date'
+import { INBOX_PATCH } from './inbox'
 import { reassignTaskPositions, renumber, sortByPosition } from './order'
 import { useStore } from './store'
 import type { Page, Project, Task } from './types'
@@ -54,7 +55,7 @@ export type DragData =
 function patchFor(c: TaskContainer): Partial<Task> {
   if (c.kind === 'due') return { due: c.date }
   if (c.kind === 'project') return { projectId: c.id }
-  if (c.kind === 'inbox') return { projectId: undefined }
+  if (c.kind === 'inbox') return INBOX_PATCH
   if (c.kind === 'column') {
     // Ferdig-kolonnen huker av; ut av den gjør oppgaven åpen igjen.
     return c.done ? { done: true, completedAt: Date.now() } : { columnId: c.columnId, done: false, completedAt: undefined }
@@ -93,7 +94,7 @@ export function DragProvider({ children }: { children: ReactNode }) {
     if (from.type === 'task') {
       const task = from.task
       if (to.type === 'project') return updateTask(task.id, { projectId: to.project.id })
-      if (to.type === 'nav') return updateTask(task.id, to.target === 'inbox' ? { projectId: undefined } : { due: todayISO() })
+      if (to.type === 'nav') return updateTask(task.id, to.target === 'inbox' ? INBOX_PATCH : { due: todayISO() })
       if (to.type !== 'task' && to.type !== 'container') return
       // Gjentakende oppgave til «Ferdig»: flytt den til neste gang i stedet for å avslutte den.
       if (to.container.kind === 'column' && to.container.done && !task.done && task.recurrence) return toggleTask(task.id)

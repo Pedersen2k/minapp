@@ -4,6 +4,7 @@ import { CSS } from '@dnd-kit/utilities'
 import { AtSign, Bell, BellOff, BellRing, CalendarDays, CheckCircle2, Pencil, CalendarRange, Cloud, CloudOff, FilePlus, HardDrive, Inbox, LogOut, Monitor, Moon, Plus, RefreshCw, Search, Sun } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
 import { todayISO } from '../lib/date'
+import { isInInbox } from '../lib/inbox'
 import { allLabels, labelColor } from '../lib/labels'
 import { disablePush, enablePush, pushState, sendTestPush, type PushState } from '../lib/push'
 import { sortByPosition } from '../lib/order'
@@ -151,7 +152,7 @@ export function Sidebar({ view, onNavigate, onSearch, theme, onTheme }: Props) {
       </div>
 
       <div className="flex-1 overflow-y-auto px-3 pb-4">
-        <DroppableNav target="inbox" active={is({ type: 'inbox' })} icon={<Inbox size={18} className="text-accent" />} label="Innboks" count={open.filter((t) => !t.projectId).length} onClick={() => onNavigate({ type: 'inbox' })} />
+        <DroppableNav target="inbox" active={is({ type: 'inbox' })} icon={<Inbox size={18} className="text-accent" />} label="Innboks" count={open.filter(isInInbox).length} onClick={() => onNavigate({ type: 'inbox' })} />
         <DroppableNav target="today" active={is({ type: 'today' })} icon={<Sun size={18} className="text-[#f59e0b]" />} label="I dag" count={open.filter((t) => t.due && t.due <= today).length} onClick={() => onNavigate({ type: 'today' })} />
         <NavItem active={is({ type: 'upcoming' })} icon={<CalendarRange size={18} className="text-[#e5484d]" />} label="Kommende" onClick={() => onNavigate({ type: 'upcoming' })} />
         <NavItem active={is({ type: 'calendar' })} icon={<CalendarDays size={18} className="text-[#0ea5e9]" />} label="Kalender" onClick={() => onNavigate({ type: 'calendar' })} />

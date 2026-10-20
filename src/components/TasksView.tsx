@@ -3,6 +3,7 @@ import { useState, type ReactNode } from 'react'
 import { addDays, formatDue, formatLong, todayISO } from '../lib/date'
 import { defaultColumns } from '../lib/board'
 import { labelColor } from '../lib/labels'
+import { isInInbox } from '../lib/inbox'
 import { byTaskOrder } from '../lib/order'
 import { childrenOf } from '../lib/projects'
 import { useEdit } from '../lib/ui-context'
@@ -171,10 +172,10 @@ export function TasksView({ view, onNavigate }: TasksViewProps) {
   }
 
   if (view.type === 'inbox') {
-    const tasks = open.filter((t) => !t.projectId)
+    const tasks = open.filter(isInInbox)
     return (
       <>
-        <Header title="Innboks" eyebrow={`${tasks.length} ${tasks.length === 1 ? 'oppgave' : 'oppgaver'}`} />
+        <Header title="Innboks" eyebrow={tasks.length ? `${tasks.length} usortert${tasks.length === 1 ? '' : 'e'} · gi dato, prosjekt eller etikett for å sortere` : 'Skriv ned ting i farten, sorter senere'} />
         <List tasks={tasks} container={{ kind: 'inbox' }} showProject={false} />
         <InlineQuickAdd />
         {tasks.length === 0 && <Empty text="Innboksen er tom" />}
