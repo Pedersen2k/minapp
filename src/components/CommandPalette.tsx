@@ -1,4 +1,4 @@
-import { AtSign, CalendarDays, CalendarRange, CheckCircle2, FilePlus, Inbox, ListPlus, Moon, Search, Sun } from 'lucide-react'
+import { AtSign, LayoutGrid, CalendarDays, CalendarRange, CheckCircle2, FilePlus, Inbox, ListPlus, Moon, Search, Sun } from 'lucide-react'
 import { useMemo, useState, type ReactNode } from 'react'
 import { formatDue, todayISO } from '../lib/date'
 import { allLabels, labelColor } from '../lib/labels'
@@ -31,6 +31,7 @@ export function CommandPalette({ onClose, onNavigate, onNewTask, onToggleTheme, 
   const items = useMemo(() => {
     const go = (v: View) => () => onNavigate(v)
     const all: Item[] = [
+      { id: 'dashboard', group: 'Gå til', label: 'Min dag', icon: <LayoutGrid size={16} />, run: go({ type: 'dashboard' }) },
       { id: 'today', group: 'Gå til', label: 'I dag', icon: <Sun size={16} />, run: go({ type: 'today' }) },
       { id: 'inbox', group: 'Gå til', label: 'Innboks', icon: <Inbox size={16} />, run: go({ type: 'inbox' }) },
       { id: 'upcoming', group: 'Gå til', label: 'Kommende', icon: <CalendarRange size={16} />, run: go({ type: 'upcoming' }) },

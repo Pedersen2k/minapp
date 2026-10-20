@@ -11,11 +11,12 @@ function parseHash(hash: string): Route {
   const [path, query] = hash.replace(/^#/, '').split('?')
   const [, kind, id] = path.split('/')
   const taskId = new URLSearchParams(query).get('t')
-  let view: View = { type: 'today' }
+  // Uten noe valgt åpner appen på «Min dag».
+  let view: View = { type: 'dashboard' }
   if (kind === 'project' && id) view = { type: 'project', id }
   else if (kind === 'page' && id) view = { type: 'page', id }
   else if (kind === 'label' && id) view = { type: 'label', name: decodeURIComponent(id) }
-  else if (kind === 'inbox' || kind === 'upcoming' || kind === 'calendar' || kind === 'done') view = { type: kind }
+  else if (kind === 'today' || kind === 'inbox' || kind === 'upcoming' || kind === 'calendar' || kind === 'done') view = { type: kind }
   return { view, taskId }
 }
 

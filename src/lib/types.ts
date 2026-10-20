@@ -77,6 +77,7 @@ export interface AppData {
 }
 
 export type View =
+  | { type: 'dashboard' }
   | { type: 'inbox' }
   | { type: 'today' }
   | { type: 'upcoming' }

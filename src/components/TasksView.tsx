@@ -10,6 +10,7 @@ import { useEdit } from '../lib/ui-context'
 import { useStore } from '../lib/store'
 import type { Task, View } from '../lib/types'
 import { BoardView } from './BoardView'
+import { Dashboard } from './Dashboard'
 import { CalendarView } from './CalendarView'
 import { InlineQuickAdd } from './QuickAdd'
 import { ProjectIcon } from './ProjectIcon'
@@ -183,6 +184,7 @@ export function TasksView({ view, onNavigate }: TasksViewProps) {
     )
   }
 
+  if (view.type === 'dashboard') return <Dashboard />
   if (view.type === 'done') return <DoneView />
 
   if (view.type === 'label') {

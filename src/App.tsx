@@ -105,13 +105,13 @@ function Workspace() {
         ? projects.find((p) => p.id === view.id)?.name ?? ''
         : view.type === 'label'
           ? `@${view.name}`
-          : { inbox: 'Innboks', today: 'I dag', upcoming: 'Kommende', calendar: 'Kalender', done: 'Fullført' }[view.type]
+          : { inbox: 'Innboks', today: 'I dag', upcoming: 'Kommende', calendar: 'Kalender', done: 'Fullført', dashboard: 'Min dag' }[view.type]
 
   // Tavle og kalender trenger bredden; lister og sider leses best smalt.
-  const wide = (view.type === 'project' && projects.find((p) => p.id === view.id)?.view === 'board') || view.type === 'calendar'
+  const wide = (view.type === 'project' && projects.find((p) => p.id === view.id)?.view === 'board') || view.type === 'calendar' || view.type === 'dashboard'
 
   const quickAddDefaults =
-    view.type === 'project' ? { projectId: view.id } : view.type === 'today' ? { due: todayISO() } : undefined
+    view.type === 'project' ? { projectId: view.id } : view.type === 'today' || view.type === 'dashboard' ? { due: todayISO() } : undefined
 
   return (
     <OpenTaskContext.Provider value={openTask}>
