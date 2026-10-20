@@ -2,31 +2,59 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* Glass og dybde: myke fargeflater bak halvgjennomsiktige paneler. */
 :root {
-  --bg: #fafaf9;
-  --surface: #ffffff;
-  --sidebar: #f4f4f3;
-  --hover: rgb(0 0 0 / 0.045);
-  --line: rgb(0 0 0 / 0.08);
-  --fg: #1c1c1e;
-  --muted: #76767c;
-  --faint: #a8a8ae;
+  --bg: #eef0f8;
+  --mesh:
+    radial-gradient(circle at 8% 12%, #cdc5ff 0, transparent 38%),
+    radial-gradient(circle at 92% 8%, #ffd9ea 0, transparent 34%),
+    radial-gradient(circle at 75% 95%, #c4e8ff 0, transparent 40%),
+    radial-gradient(circle at 20% 90%, #ffe9cc 0, transparent 32%);
+  --glass: rgb(255 255 255 / 0.5);
+  --glass-strong: rgb(255 255 255 / 0.82);
+  --glass-border: rgb(255 255 255 / 0.75);
+  --glass-highlight: rgb(255 255 255 / 0.9);
+  --card: rgb(255 255 255 / 0.58);
+  --card-hover: rgb(255 255 255 / 0.82);
+  --surface: rgb(255 255 255 / 0.88);
+  --sidebar: transparent;
+  --hover: rgb(60 50 140 / 0.06);
+  --line: rgb(60 50 140 / 0.09);
+  --fg: #1a1a2e;
+  --muted: #64647e;
+  --faint: #a0a0b8;
   --accent: #6a5ae0;
+  --accent-2: #8b7df5;
   --accent-soft: rgb(106 90 224 / 0.1);
+  --shadow: 0 20px 50px -20px rgb(60 50 140 / 0.28);
+  --shadow-lg: 0 30px 70px -24px rgb(60 50 140 / 0.38);
   color-scheme: light;
 }
 
 .dark {
-  --bg: #121214;
-  --surface: #1a1a1d;
-  --sidebar: #161618;
-  --hover: rgb(255 255 255 / 0.055);
+  --bg: #0d0e19;
+  --mesh:
+    radial-gradient(circle at 8% 12%, rgb(91 75 214 / 0.38) 0, transparent 40%),
+    radial-gradient(circle at 92% 8%, rgb(236 72 153 / 0.16) 0, transparent 36%),
+    radial-gradient(circle at 75% 95%, rgb(56 189 248 / 0.16) 0, transparent 40%),
+    radial-gradient(circle at 20% 90%, rgb(245 158 11 / 0.08) 0, transparent 32%);
+  --glass: rgb(26 26 42 / 0.55);
+  --glass-strong: rgb(32 32 50 / 0.9);
+  --glass-border: rgb(255 255 255 / 0.08);
+  --glass-highlight: rgb(255 255 255 / 0.05);
+  --card: rgb(255 255 255 / 0.045);
+  --card-hover: rgb(255 255 255 / 0.085);
+  --surface: rgb(38 38 58 / 0.92);
+  --hover: rgb(255 255 255 / 0.06);
   --line: rgb(255 255 255 / 0.08);
-  --fg: #ececee;
-  --muted: #8e8e95;
-  --faint: #5c5c63;
+  --fg: #ececf4;
+  --muted: #9d9db8;
+  --faint: #62627c;
   --accent: #8b7df5;
-  --accent-soft: rgb(139 125 245 / 0.14);
+  --accent-2: #a395ff;
+  --accent-soft: rgb(139 125 245 / 0.16);
+  --shadow: 0 20px 50px -20px rgb(0 0 0 / 0.6);
+  --shadow-lg: 0 30px 70px -24px rgb(0 0 0 / 0.7);
   color-scheme: dark;
 }
 
@@ -42,6 +70,9 @@
   --color-faint: var(--faint);
   --color-accent: var(--accent);
   --color-accent-soft: var(--accent-soft);
+  --color-card: var(--card);
+  --color-card-hover: var(--card-hover);
+  --color-glass-border: var(--glass-border);
 }
 
 html,
@@ -64,6 +95,16 @@ body {
     font: inherit;
     color: inherit;
   }
+}
+
+/* Fast bakgrunn via eget lag (background-attachment: fixed virker ikke på iPhone). */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: var(--mesh), var(--bg);
+  pointer-events: none;
 }
 
 @keyframes pop {
@@ -103,4 +144,25 @@ body {
 
 @media (min-width: 768px) {
   .animate-sheet { animation-name: sheet-left; }
+}
+
+/* Glasspaneler. Uskarphet bare på store flater – det er tungt for mobilen på mange små. */
+@utility glass {
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--shadow), inset 0 1px 0 var(--glass-highlight);
+  -webkit-backdrop-filter: blur(30px) saturate(180%);
+  backdrop-filter: blur(30px) saturate(180%);
+}
+
+@utility glass-strong {
+  background: var(--glass-strong);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--shadow-lg), inset 0 1px 0 var(--glass-highlight);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+  backdrop-filter: blur(40px) saturate(180%);
+}
+
+@utility bg-accent-gradient {
+  background: linear-gradient(135deg, var(--accent-2), var(--accent));
 }

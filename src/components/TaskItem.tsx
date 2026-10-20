@@ -1,4 +1,4 @@
-import { AlignLeft, Calendar, Check, Clock, ListChecks, Repeat, Trash2 } from 'lucide-react'
+import { Calendar, Check, Clock, ListChecks, Repeat, Trash2 } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { formatDue, todayISO } from '../lib/date'
 import { useStore } from '../lib/store'
@@ -12,7 +12,7 @@ interface Props {
   showDate?: boolean
 }
 
-export function TaskCheckbox({ task, checked, onClick, size = 18 }: { task: Task; checked: boolean; onClick: () => void; size?: number }) {
+export function TaskCheckbox({ task, checked, onClick, size = 20 }: { task: Task; checked: boolean; onClick: () => void; size?: number }) {
   const color = PRIORITY_COLOR[task.priority]
   return (
     <button
@@ -21,7 +21,7 @@ export function TaskCheckbox({ task, checked, onClick, size = 18 }: { task: Task
         onClick()
       }}
       aria-label={checked ? 'Marker som ikke fullført' : 'Fullfør'}
-      className="mt-0.5 grid shrink-0 place-items-center rounded-full border-[1.5px] transition hover:scale-110"
+      className="mt-px grid shrink-0 place-items-center rounded-full border-2 transition hover:scale-110"
       style={{
         width: size,
         height: size,
@@ -29,7 +29,7 @@ export function TaskCheckbox({ task, checked, onClick, size = 18 }: { task: Task
         background: checked ? color : `color-mix(in srgb, ${color} 10%, transparent)`,
       }}
     >
-      {checked && <Check size={size * 0.6} strokeWidth={3.5} className="animate-pop text-white" />}
+      {checked && <Check size={size * 0.55} strokeWidth={3.5} className="animate-pop text-white" />}
     </button>
   )
 }
@@ -77,14 +77,16 @@ export function TaskItem({ task, showProject = true, showDate = true }: Props) {
   return (
     <li
       onClick={() => openTask(task.id)}
-      className={`group -mx-2 flex cursor-pointer items-start gap-3 rounded-lg border-b border-line px-2 py-2.5 transition hover:bg-hover ${
-        completing && !task.done ? 'opacity-40' : ''
-      }`}
+      className={`group flex cursor-pointer items-start gap-3 rounded-2xl border border-glass-border px-4 py-3 transition-all duration-300 hover:bg-card-hover ${
+        completing && !task.done ? 'scale-[0.98] opacity-40' : ''
+      } ${overdue ? '' : 'bg-card'}`}
+      style={overdue ? { background: 'color-mix(in srgb, #e5484d 9%, var(--card))' } : undefined}
     >
       <TaskCheckbox task={task} checked={checked} onClick={complete} />
 
       <div className="min-w-0 flex-1">
         <p className={`text-[15px] leading-snug break-words ${checked ? 'text-faint line-through' : ''}`}>{task.title}</p>
+        {task.notes && <p className="mt-0.5 line-clamp-1 text-[13px] text-muted">{task.notes}</p>}
 
         <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs empty:hidden">
           {showDate && task.due && (
@@ -108,11 +110,6 @@ export function TaskItem({ task, showProject = true, showDate = true }: Props) {
               <ListChecks size={12} /> {subDone}/{subtasks.length}
             </span>
           )}
-          {task.notes && (
-            <span className="inline-flex items-center text-muted">
-              <AlignLeft size={12} />
-            </span>
-          )}
           {showProject && project && (
             <span className="inline-flex items-center gap-1.5 text-muted">
               <Dot color={project.color} /> {project.name}
@@ -123,7 +120,7 @@ export function TaskItem({ task, showProject = true, showDate = true }: Props) {
 
       {/* Hurtighandlinger ved hover på PC. På mobil brukes detaljpanelet. */}
       <div className="relative hidden items-center gap-0.5 transition md:flex md:opacity-0 md:group-hover:opacity-100 md:focus-within:opacity-100">
-        <button onClick={openDatePicker} aria-label="Endre dato" className="grid size-7 place-items-center rounded-md text-faint hover:bg-hover hover:text-fg">
+        <button onClick={openDatePicker} aria-label="Endre dato" className="grid size-7 place-items-center rounded-lg text-faint hover:bg-hover hover:text-fg">
           <Calendar size={15} />
         </button>
         <button
@@ -132,7 +129,7 @@ export function TaskItem({ task, showProject = true, showDate = true }: Props) {
             deleteTask(task.id)
           }}
           aria-label="Slett"
-          className="grid size-7 place-items-center rounded-md text-faint hover:bg-hover hover:text-[#e5484d]"
+          className="grid size-7 place-items-center rounded-lg text-faint hover:bg-hover hover:text-[#e5484d]"
         >
           <Trash2 size={15} />
         </button>

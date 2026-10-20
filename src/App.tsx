@@ -100,72 +100,77 @@ function Workspace() {
 
   return (
     <OpenTaskContext.Provider value={openTask}>
-    <div className="flex h-full">
-      {/* Sidemeny: fast på PC, skuff på mobil */}
-      <aside className="hidden w-[264px] shrink-0 border-r border-line md:block">
-        <Sidebar view={view} onNavigate={go} onSearch={() => setPalette(true)} theme={theme} onTheme={setTheme} />
-      </aside>
-      {drawer && (
-        <div className="fixed inset-0 z-40 md:hidden">
-          <div className="animate-fade absolute inset-0 bg-black/30" onClick={() => setDrawer(false)} />
-          <aside className="animate-rise absolute inset-y-0 left-0 w-[82%] max-w-[300px] shadow-2xl">
-            <Sidebar view={view} onNavigate={go} onSearch={() => { setDrawer(false); setPalette(true) }} theme={theme} onTheme={setTheme} />
-          </aside>
-        </div>
-      )}
-
-      <main className="flex min-w-0 flex-1 flex-col">
-        <header className="pt-safe sticky top-0 z-30 border-b border-line bg-bg/85 backdrop-blur-md md:hidden">
-          <div className="flex h-12 items-center gap-2 px-2">
-            <button onClick={() => setDrawer(true)} className="grid size-10 place-items-center rounded-lg text-muted" aria-label="Meny">
-              <Menu size={20} />
-            </button>
-            <span className="flex-1 truncate text-center text-[15px] font-semibold">{mobileTitle}</span>
-            <button onClick={() => setPalette(true)} className="grid size-10 place-items-center rounded-lg text-muted" aria-label="Søk">
-              <Search size={19} />
-            </button>
+      <div className="flex h-full md:gap-4 md:p-4">
+        {/* Sidemeny: flytende glasspanel på PC, skuff på mobil */}
+        <aside className="glass hidden w-[264px] shrink-0 overflow-hidden rounded-3xl md:block">
+          <Sidebar view={view} onNavigate={go} onSearch={() => setPalette(true)} theme={theme} onTheme={setTheme} />
+        </aside>
+        {drawer && (
+          <div className="fixed inset-0 z-40 md:hidden">
+            <div className="animate-fade absolute inset-0 bg-black/25" onClick={() => setDrawer(false)} />
+            <aside className="glass-strong animate-rise absolute inset-y-2 left-2 w-[82%] max-w-[300px] overflow-hidden rounded-3xl">
+              <Sidebar view={view} onNavigate={go} onSearch={() => { setDrawer(false); setPalette(true) }} theme={theme} onTheme={setTheme} />
+            </aside>
           </div>
-        </header>
+        )}
 
-        <div className="flex-1 overflow-y-auto">
-          <div className="mx-auto w-full max-w-[720px] px-5 pt-6 pb-32 md:px-10 md:pt-14">
-            {view.type === 'page' ? (
-              page ? (
-                <PageEditor key={page.id} page={page} onDeleted={() => go({ type: 'today' })} />
+        <main className="flex min-w-0 flex-1 flex-col md:glass md:overflow-hidden md:rounded-[28px]">
+          <header className="pt-safe sticky top-0 z-30 md:hidden">
+            <div className="flex h-14 items-center gap-2 px-4">
+              <button onClick={() => setDrawer(true)} className="glass grid size-10 place-items-center rounded-xl" aria-label="Meny">
+                <Menu size={19} />
+              </button>
+              <span className="flex-1 truncate text-center text-[15px] font-semibold">{view.type === 'page' ? mobileTitle : ''}</span>
+              <button onClick={() => setPalette(true)} className="glass grid size-10 place-items-center rounded-xl" aria-label="Søk">
+                <Search size={18} />
+              </button>
+            </div>
+          </header>
+
+          <div className="flex-1 overflow-y-auto">
+            <div className="mx-auto w-full max-w-[720px] px-4 pt-4 pb-36 md:px-12 md:pt-14 md:pb-24">
+              {view.type === 'page' ? (
+                page ? (
+                  <PageEditor key={page.id} page={page} onDeleted={() => go({ type: 'today' })} />
+                ) : (
+                  <p className="text-muted">Fant ikke siden.</p>
+                )
               ) : (
-                <p className="text-muted">Fant ikke siden.</p>
-              )
-            ) : (
-              <TasksView view={view} onNavigate={go} />
-            )}
+                <TasksView view={view} onNavigate={go} />
+              )}
+            </div>
           </div>
-        </div>
-      </main>
+        </main>
 
-      {view.type !== 'page' && (
-        <button
-          onClick={openQuickAdd}
-          aria-label="Ny oppgave"
-          className="fixed right-5 bottom-[calc(1.25rem+env(safe-area-inset-bottom))] z-30 grid size-14 place-items-center rounded-full bg-accent text-white shadow-lg shadow-accent/30 transition active:scale-95 md:hidden"
-        >
-          <Plus size={26} />
-        </button>
-      )}
-
-      {quickAdd && (
-        <div className="animate-fade fixed inset-0 z-50 flex items-end justify-center bg-black/30 p-3 backdrop-blur-[2px] md:items-start md:pt-[18vh]" onMouseDown={() => setQuickAdd(false)}>
-          <div className="w-full max-w-lg" onMouseDown={(e) => e.stopPropagation()}>
-            <QuickAdd defaults={quickAddDefaults} autoFocus onCancel={() => setQuickAdd(false)} onAdded={() => setQuickAdd(false)} />
+        {/* Mobil: inndatalinje i glass nederst */}
+        {view.type !== 'page' && !quickAdd && !taskId && (
+          <div className="pointer-events-none fixed inset-x-0 bottom-0 z-30 px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] md:hidden">
+            <button
+              onClick={openQuickAdd}
+              className="glass pointer-events-auto flex w-full items-center gap-3 rounded-[26px] py-2 pr-2 pl-5 text-left transition active:scale-[0.98]"
+            >
+              <span className="flex-1 text-[15px] text-faint">Hva skal gjøres?</span>
+              <span className="bg-accent-gradient grid size-11 place-items-center rounded-[18px] text-white shadow-[0_8px_18px_-6px_rgb(91_75_214/0.7)]">
+                <Plus size={22} />
+              </span>
+            </button>
           </div>
-        </div>
-      )}
+        )}
 
-      {taskId && <TaskDetail taskId={taskId} onClose={closeTask} />}
+        {quickAdd && (
+          <div className="animate-fade fixed inset-0 z-50 flex items-end justify-center bg-black/25 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] md:items-start md:pt-[18vh]" onMouseDown={() => setQuickAdd(false)}>
+            <div className="w-full max-w-lg" onMouseDown={(e) => e.stopPropagation()}>
+              <QuickAdd defaults={quickAddDefaults} autoFocus onCancel={() => setQuickAdd(false)} onAdded={() => setQuickAdd(false)} />
+            </div>
+          </div>
+        )}
 
-      {palette && (
-        <CommandPalette onClose={() => setPalette(false)} onNavigate={go} onNewTask={openQuickAdd} onToggleTheme={toggleTheme} onOpenTask={openTask} />
-      )}
-    </div>
+        {taskId && <TaskDetail taskId={taskId} onClose={closeTask} />}
+
+        {palette && (
+          <CommandPalette onClose={() => setPalette(false)} onNavigate={go} onNewTask={openQuickAdd} onToggleTheme={toggleTheme} onOpenTask={openTask} />
+        )}
+      </div>
     </OpenTaskContext.Provider>
   )
 }

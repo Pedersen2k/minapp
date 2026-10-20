@@ -1,7 +1,8 @@
 import { Calendar, Clock, Flag, FolderOpen, Inbox, Plus, Repeat, Trash2, X } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
-import { formatDue, formatLong, MONTHS, todayISO } from '../lib/date'
+import { formatDue, MONTHS, todayISO } from '../lib/date'
 import { uid } from '../lib/id'
+import { projectTree } from '../lib/projects'
 import { RECURRENCE_LABEL } from '../lib/recurrence'
 import { useStore } from '../lib/store'
 import type { Priority, Recurrence, Subtask, Task } from '../lib/types'
@@ -11,7 +12,7 @@ import { Dot, PRIORITY_COLOR } from './ui'
 
 function Row({ icon, label, children }: { icon: ReactNode; label: string; children: ReactNode }) {
   return (
-    <div className="flex min-h-11 items-center gap-3 border-b border-line py-1.5">
+    <div className="flex min-h-12 items-center gap-3 border-b border-line py-1.5 last:border-b-0">
       <span className="flex w-32 shrink-0 items-center gap-2.5 text-sm text-muted">
         {icon}
         {label}
@@ -22,7 +23,7 @@ function Row({ icon, label, children }: { icon: ReactNode; label: string; childr
 }
 
 const control =
-  'rounded-lg border border-transparent bg-transparent px-2 py-1.5 text-sm text-fg outline-none transition hover:bg-hover focus:border-accent'
+  'rounded-xl border border-transparent bg-transparent px-2.5 py-1.5 text-sm text-fg outline-none transition hover:bg-hover focus:border-accent'
 
 function ClearButton({ onClick }: { onClick: () => void }) {
   return (
@@ -64,8 +65,8 @@ function Panel({ task, projects, onClose, update, remove }: PanelProps) {
 
   return (
     <div className="fixed inset-0 z-50" role="dialog" aria-label="Oppgavedetaljer">
-      <div className="animate-fade absolute inset-0 bg-black/25 backdrop-blur-[1px]" onClick={onClose} />
-      <aside className="animate-sheet absolute inset-x-0 bottom-0 flex max-h-[92dvh] flex-col rounded-t-2xl border-t border-line bg-surface shadow-2xl md:inset-y-0 md:right-0 md:left-auto md:max-h-none md:w-[460px] md:rounded-none md:border-t-0 md:border-l">
+      <div className="animate-fade absolute inset-0 bg-black/20" onClick={onClose} />
+      <aside className="glass-strong animate-sheet absolute inset-x-2 bottom-2 flex max-h-[90dvh] flex-col rounded-[28px] md:inset-y-4 md:right-4 md:left-auto md:max-h-none md:w-[460px]">
         {/* Topplinje */}
         <div className="flex items-center gap-2 px-4 pt-3 pb-2 md:px-6 md:pt-5">
           <span className="mx-auto mb-1 h-1 w-10 rounded-full bg-line md:hidden" />
@@ -118,9 +119,8 @@ function Panel({ task, projects, onClose, update, remove }: PanelProps) {
           </div>
 
           {/* Egenskaper */}
-          <div className="mt-5">
+          <div className="mt-5 rounded-2xl border border-glass-border bg-card px-4">
             <Row icon={<Calendar size={16} />} label="Dato">
-              {task.due && <span className="hidden text-xs text-faint sm:inline">{formatLong(task.due)}</span>}
               <input type="date" value={task.due ?? ''} onChange={(e) => update({ due: e.target.value || undefined })} className={control} aria-label="Dato" />
               {task.due && <ClearButton onClick={() => update({ due: undefined, recurrence: undefined })} />}
             </Row>
@@ -165,8 +165,8 @@ function Panel({ task, projects, onClose, update, remove }: PanelProps) {
                 aria-label="Prosjekt"
               >
                 <option value="">Innboks</option>
-                {projects.map((p) => (
-                  <option key={p.id} value={p.id}>{p.name}</option>
+                {projectTree(projects).map(({ project: p, depth }) => (
+                  <option key={p.id} value={p.id}>{`${'\u00a0\u00a0\u00a0'.repeat(depth)}${p.name}`}</option>
                 ))}
               </select>
             </Row>
@@ -183,8 +183,8 @@ function Panel({ task, projects, onClose, update, remove }: PanelProps) {
               )}
             </div>
             {subtasks.length > 0 && (
-              <div className="mb-2 h-1 overflow-hidden rounded-full bg-line">
-                <div className="h-full rounded-full bg-accent transition-all" style={{ width: `${(subtasks.filter((s) => s.done).length / subtasks.length) * 100}%` }} />
+              <div className="mb-2 h-1.5 overflow-hidden rounded-full bg-accent-soft">
+                <div className="bg-accent-gradient h-full rounded-full transition-all" style={{ width: `${(subtasks.filter((s) => s.done).length / subtasks.length) * 100}%` }} />
               </div>
             )}
             <ul>

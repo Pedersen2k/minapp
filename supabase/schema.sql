@@ -6,6 +6,7 @@ create table if not exists public.projects (
   user_id uuid not null default auth.uid() references auth.users on delete cascade,
   name text not null,
   color text not null,
+  parent_id uuid references public.projects on delete cascade,
   updated_at timestamptz not null default now()
 );
 

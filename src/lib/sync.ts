@@ -37,7 +37,7 @@ function toRow(table: Table, item: Item): Row {
   const now = new Date().toISOString()
   if (table === 'projects') {
     const p = item as Project
-    return { id: p.id, name: p.name, color: p.color, updated_at: now }
+    return { id: p.id, name: p.name, color: p.color, parent_id: p.parentId ?? null, updated_at: now }
   }
   if (table === 'tasks') {
     const t = item as Task
@@ -62,7 +62,11 @@ function toRow(table: Table, item: Item): Row {
 }
 
 function fromRow(table: Table, r: Row): Item {
-  if (table === 'projects') return { id: r.id, name: r.name, color: r.color } as Project
+  if (table === 'projects') {
+    const p = { id: r.id, name: r.name, color: r.color } as Project
+    if (r.parent_id) p.parentId = r.parent_id as string
+    return p
+  }
   if (table === 'tasks') {
     const t: Task = {
       id: r.id as string,

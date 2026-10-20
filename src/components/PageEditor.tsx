@@ -196,7 +196,7 @@ export function PageEditor({ page, onDeleted }: { page: Page; onDeleted: () => v
           </button>
         </div>
         {iconPicker && (
-          <div className="animate-rise absolute z-20 mt-1 grid grid-cols-5 gap-1 rounded-xl border border-line bg-surface p-2 shadow-xl">
+          <div className="glass-strong animate-rise absolute z-20 mt-1 grid grid-cols-5 gap-1 rounded-2xl p-2">
             {ICONS.map((ic) => (
               <button
                 key={ic}
@@ -258,7 +258,7 @@ export function PageEditor({ page, onDeleted }: { page: Page; onDeleted: () => v
                 className={`${STYLE[b.type]} ${b.type === 'todo' && b.checked ? 'text-faint line-through' : ''}`}
               />
               {options && options.length > 0 && focusedId === b.id && (
-                <div className="animate-rise absolute top-full left-0 z-20 mt-1 w-60 rounded-xl border border-line bg-surface p-1 shadow-xl">
+                <div className="glass-strong animate-rise absolute top-full left-0 z-20 mt-1 w-60 rounded-2xl p-1.5">
                   <p className="px-2.5 pt-1.5 pb-1 text-[11px] font-semibold tracking-wide text-faint uppercase">Blokker</p>
                   {options.map((o, oi) => (
                     <button

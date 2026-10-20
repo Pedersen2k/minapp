@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { todayISO } from './date'
 import { uid } from './id'
+import { descendantIds } from './projects'
 import { nextOccurrence } from './recurrence'
 import { seedData } from './seed'
 import { useSync } from './sync'
@@ -65,22 +66,31 @@ function useStoreValue() {
     setData((d) => ({ ...d, tasks: d.tasks.filter((t) => t.id !== id) }))
   }, [])
 
-  const addProject = useCallback((name: string, color?: string) => {
+  const addProject = useCallback((name: string, opts: { color?: string; parentId?: string } = {}) => {
     const project: Project = {
       id: uid(),
       name,
-      color: color ?? PROJECT_COLORS[Math.floor(Math.random() * PROJECT_COLORS.length)],
+      color: opts.color ?? PROJECT_COLORS[Math.floor(Math.random() * PROJECT_COLORS.length)],
+      ...(opts.parentId ? { parentId: opts.parentId } : {}),
     }
     setData((d) => ({ ...d, projects: [...d.projects, project] }))
     return project
   }, [])
 
+  const updateProject = useCallback((id: string, patch: Partial<Project>) => {
+    setData((d) => ({ ...d, projects: d.projects.map((p) => (p.id === id ? { ...p, ...patch } : p)) }))
+  }, [])
+
+  // Sletter prosjektet, underprosjektene og alle oppgavene i dem.
   const deleteProject = useCallback((id: string) => {
-    setData((d) => ({
-      ...d,
-      projects: d.projects.filter((p) => p.id !== id),
-      tasks: d.tasks.filter((t) => t.projectId !== id),
-    }))
+    setData((d) => {
+      const gone = new Set([id, ...descendantIds(d.projects, id)])
+      return {
+        ...d,
+        projects: d.projects.filter((p) => !gone.has(p.id)),
+        tasks: d.tasks.filter((t) => !t.projectId || !gone.has(t.projectId)),
+      }
+    })
   }, [])
 
   const addPage = useCallback(() => {
@@ -101,8 +111,8 @@ function useStoreValue() {
   }, [])
 
   return useMemo(
-    () => ({ ...data, sync, addTask, updateTask, toggleTask, deleteTask, addProject, deleteProject, addPage, updatePage, deletePage }),
-    [data, sync, addTask, updateTask, toggleTask, deleteTask, addProject, deleteProject, addPage, updatePage, deletePage],
+    () => ({ ...data, sync, addTask, updateTask, toggleTask, deleteTask, addProject, updateProject, deleteProject, addPage, updatePage, deletePage }),
+    [data, sync, addTask, updateTask, toggleTask, deleteTask, addProject, updateProject, deleteProject, addPage, updatePage, deletePage],
   )
 }
 

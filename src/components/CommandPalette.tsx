@@ -82,8 +82,8 @@ export function CommandPalette({ onClose, onNavigate, onNewTask, onToggleTheme, 
   let lastGroup = ''
 
   return (
-    <div className="animate-fade fixed inset-0 z-50 flex items-start justify-center bg-black/30 px-4 pt-[12vh] backdrop-blur-[2px]" onMouseDown={onClose}>
-      <div onMouseDown={(e) => e.stopPropagation()} className="animate-rise w-full max-w-lg overflow-hidden rounded-2xl border border-line bg-surface shadow-2xl">
+    <div className="animate-fade fixed inset-0 z-50 flex items-start justify-center bg-black/20 px-4 pt-[12vh]" onMouseDown={onClose}>
+      <div onMouseDown={(e) => e.stopPropagation()} className="glass-strong animate-rise w-full max-w-lg overflow-hidden rounded-3xl">
         <div className="flex items-center gap-3 border-b border-line px-4">
           <Search size={18} className="text-faint" />
           <input
@@ -115,7 +115,7 @@ export function CommandPalette({ onClose, onNavigate, onNewTask, onToggleTheme, 
                   onMouseMove={() => setIndex(i)}
                   onClick={() => run(item)}
                   ref={(el) => { if (i === index) el?.scrollIntoView({ block: 'nearest' }) }}
-                  className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm ${i === index ? 'bg-hover' : ''}`}
+                  className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm ${i === index ? 'bg-hover' : ''}`}
                 >
                   <span className="grid w-4 place-items-center text-muted">{item.icon}</span>
                   <span className="flex-1 truncate">{item.label}</span>

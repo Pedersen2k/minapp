@@ -27,6 +27,7 @@ export interface Project {
   id: string
   name: string
   color: string
+  parentId?: string
 }
 
 export type BlockType = 'p' | 'h1' | 'h2' | 'todo' | 'bullet' | 'quote'

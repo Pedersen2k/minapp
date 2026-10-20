@@ -26,12 +26,12 @@ export function Login() {
   }
 
   const field =
-    'w-full rounded-xl border border-line bg-surface px-3.5 py-2.5 text-[15px] outline-none transition placeholder:text-faint focus:border-accent focus:ring-4 focus:ring-accent-soft'
+    'w-full rounded-xl border border-glass-border bg-surface px-3.5 py-2.5 text-[15px] outline-none transition placeholder:text-faint focus:border-accent focus:ring-4 focus:ring-accent-soft'
 
   return (
     <div className="flex min-h-full items-center justify-center px-5 py-12">
-      <form onSubmit={submit} className="animate-rise w-full max-w-sm">
-        <img src="/icon.svg" alt="" className="mb-6 size-12 rounded-2xl shadow-lg shadow-accent/25" />
+      <form onSubmit={submit} className="glass animate-rise w-full max-w-sm rounded-[28px] p-8">
+        <img src="/icon.svg" alt="" className="mb-6 size-12 rounded-2xl shadow-[0_10px_24px_-8px_rgb(91_75_214/0.6)]" />
         <h1 className="text-[26px] font-bold tracking-tight">Velkommen tilbake</h1>
         <p className="mt-1 mb-8 text-sm text-muted">Logg inn for å synke oppgaver og sider mellom enhetene dine.</p>
 
@@ -43,7 +43,7 @@ export function Login() {
 
         {error && <p className="mt-3 text-sm text-[#e5484d]">{error}</p>}
 
-        <button type="submit" disabled={busy} className="mt-6 w-full rounded-xl bg-accent py-2.5 text-[15px] font-medium text-white transition hover:brightness-110 disabled:opacity-60">
+        <button type="submit" disabled={busy} className="bg-accent-gradient mt-6 w-full rounded-xl py-2.5 text-[15px] font-medium text-white transition hover:brightness-110 disabled:opacity-60">
           {busy ? 'Logger inn …' : 'Logg inn'}
         </button>
       </form>

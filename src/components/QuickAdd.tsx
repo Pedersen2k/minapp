@@ -2,8 +2,10 @@ import { Calendar, Clock, Flag, Plus, Repeat } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { formatDue } from '../lib/date'
 import { parseQuickAdd } from '../lib/parse'
+import { findProjectByTag } from '../lib/projects'
 import { RECURRENCE_LABEL } from '../lib/recurrence'
 import { useStore } from '../lib/store'
+import { AutoTextarea } from './AutoTextarea'
 import { Chip, Dot, PRIORITY_COLOR } from './ui'
 
 export interface QuickAddDefaults {
@@ -18,10 +20,11 @@ interface Props {
   onAdded?: () => void
 }
 
-/** Kortet med inndatafelt. Tolker dato, klokkeslett, #prosjekt og p1–p4 mens du skriver. */
+/** Kortet med inndatafelt. Tolker dato, klokkeslett, gjentakelse, #prosjekt og p1–p4 mens du skriver. */
 export function QuickAdd({ defaults, autoFocus, onCancel, onAdded }: Props) {
   const { projects, addTask, addProject } = useStore()
   const [text, setText] = useState('')
+  const [notes, setNotes] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
   const parsed = useMemo(() => parseQuickAdd(text), [text])
 
@@ -29,9 +32,7 @@ export function QuickAdd({ defaults, autoFocus, onCancel, onAdded }: Props) {
     if (autoFocus) inputRef.current?.focus()
   }, [autoFocus])
 
-  const matchedProject = parsed.project
-    ? projects.find((p) => p.name.toLowerCase() === parsed.project!.toLowerCase())
-    : projects.find((p) => p.id === defaults?.projectId)
+  const matchedProject = parsed.project ? findProjectByTag(projects, parsed.project) : projects.find((p) => p.id === defaults?.projectId)
   const due = parsed.due ?? defaults?.due
 
   const submit = () => {
@@ -40,26 +41,46 @@ export function QuickAdd({ defaults, autoFocus, onCancel, onAdded }: Props) {
     if (parsed.project && !matchedProject) {
       projectId = addProject(parsed.project.charAt(0).toUpperCase() + parsed.project.slice(1)).id
     }
-    addTask({ title: parsed.title, due, time: parsed.time, priority: parsed.priority ?? 4, projectId, recurrence: parsed.recurrence })
+    addTask({
+      title: parsed.title,
+      notes: notes.trim() || undefined,
+      due,
+      time: parsed.time,
+      priority: parsed.priority ?? 4,
+      projectId,
+      recurrence: parsed.recurrence,
+    })
     setText('')
+    setNotes('')
+    inputRef.current?.focus()
     onAdded?.()
   }
 
-  const hasMeta = due || parsed.time || parsed.project || matchedProject || parsed.priority
+  const hasMeta = due || parsed.time || parsed.project || matchedProject || parsed.priority || parsed.recurrence
 
   return (
-    <div className="animate-rise rounded-xl border border-line bg-surface p-3 shadow-[0_1px_2px_rgb(0_0_0/0.04),0_8px_24px_-12px_rgb(0_0_0/0.15)]">
+    <div className="glass-strong animate-rise rounded-[22px] p-4">
       <input
         ref={inputRef}
         value={text}
         onChange={(e) => setText(e.target.value)}
         onKeyDown={(e) => {
-          if (e.key === 'Enter') submit()
+          if (e.key === 'Enter' && !e.nativeEvent.isComposing) submit()
           if (e.key === 'Escape') onCancel?.()
         }}
         placeholder="Hva skal gjøres?"
         enterKeyHint="done"
-        className="w-full bg-transparent text-[15px] font-medium outline-none placeholder:text-faint"
+        className="w-full bg-transparent text-base font-semibold outline-none placeholder:text-faint"
+      />
+      <AutoTextarea
+        value={notes}
+        onChange={setNotes}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) submit()
+          if (e.key === 'Escape') onCancel?.()
+        }}
+        placeholder="Beskrivelse"
+        className="mt-1 max-h-40 text-sm leading-6 text-muted"
       />
       <div className="mt-2 flex min-h-6 flex-wrap items-center gap-1.5">
         {hasMeta ? (
@@ -97,14 +118,14 @@ export function QuickAdd({ defaults, autoFocus, onCancel, onAdded }: Props) {
       </div>
       <div className="mt-3 flex justify-end gap-2 border-t border-line pt-3">
         {onCancel && (
-          <button onClick={onCancel} className="rounded-lg px-3 py-1.5 text-sm font-medium text-muted hover:bg-hover">
+          <button onClick={onCancel} className="rounded-xl px-3.5 py-2 text-sm font-medium text-muted hover:bg-hover">
             Avbryt
           </button>
         )}
         <button
           onClick={submit}
           disabled={!parsed.title}
-          className="rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-white transition disabled:opacity-40"
+          className="bg-accent-gradient rounded-xl px-4 py-2 text-sm font-semibold text-white shadow-[0_6px_16px_-6px_rgb(91_75_214/0.7)] transition disabled:opacity-40 disabled:shadow-none"
         >
           Legg til
         </button>
@@ -120,11 +141,9 @@ export function InlineQuickAdd({ defaults }: { defaults?: QuickAddDefaults }) {
   return (
     <button
       onClick={() => setOpen(true)}
-      className="group flex w-full items-center gap-3 rounded-lg py-2 text-left text-sm text-muted transition hover:text-accent"
+      className="flex w-full items-center gap-3 rounded-2xl border-[1.5px] border-dashed border-accent/30 px-4 py-3 text-left text-[15px] font-medium text-accent transition hover:border-accent/60 hover:bg-accent-soft"
     >
-      <span className="grid size-5 place-items-center rounded-full text-accent transition group-hover:bg-accent group-hover:text-white">
-        <Plus size={16} />
-      </span>
+      <Plus size={18} />
       Legg til oppgave
     </button>
   )
