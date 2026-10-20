@@ -38,6 +38,7 @@ interface Feed {
 }
 
 const FEED_CACHE = 'minapp:feed'
+const PENDING_KEY = 'minapp:pending-gmail-key'
 
 function greeting(): string {
   const h = new Date().getHours()
@@ -225,7 +226,11 @@ export function Dashboard() {
                 </button>
               </div>
             ) : feed?.error || feed?.mailError ? (
-              <p className="text-sm text-[#e5484d]">{feed.error ?? 'Gmail svarte med en feil. Prøv igjen, eller sjekk skriptet.'}</p>
+              <p className="text-sm text-[#e5484d]">
+                {feed.error === 'Ingen tilgang'
+                  ? 'Ingen tilgang: nøkkelen i skriptet (skriptegenskapen KEY) er ikke den samme som i appen. Åpne oppsettet med tannhjulet og kopier nøkkelen derfra.'
+                  : (feed.error ?? 'Gmail svarte med en feil. Prøv igjen, eller sjekk skriptet.')}
+              </p>
             ) : !feed?.mails ? (
               <p className="py-4 text-sm text-muted">Henter e-post …</p>
             ) : feed.mails.length === 0 ? (
@@ -311,7 +316,13 @@ function CopyButton({ text, label }: { text: string; label: string }) {
 
 /** Steg-for-steg-oppsett av Apps Script-et som henter e-post og nyheter. */
 function GmailSetup({ settings, onSave, onClose }: { settings: Settings; onSave: (p: Partial<Settings>) => Promise<void>; onClose: () => void }) {
-  const [key] = useState(() => settings.gmailKey ?? randomKey())
+  // Nøkkelen må være den samme fra den vises til den lagres, også om vinduet lukkes og åpnes igjen.
+  const [key] = useState(() => {
+    if (settings.gmailKey) return settings.gmailKey
+    const pending = localStorage.getItem(PENDING_KEY) ?? randomKey()
+    localStorage.setItem(PENDING_KEY, pending)
+    return pending
+  })
   const [url, setUrl] = useState(settings.gmailScriptUrl ?? '')
   const [error, setError] = useState<string | null>(null)
   const valid = /^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec$/.test(url.trim())
@@ -411,6 +422,7 @@ function GmailSetup({ settings, onSave, onClose }: { settings: Settings; onSave:
             onClick={async () => {
               try {
                 await onSave({ gmailScriptUrl: url.trim(), gmailKey: key })
+                localStorage.removeItem(PENDING_KEY)
                 onClose()
               } catch (e) {
                 setError(e instanceof Error ? e.message : 'Kunne ikke lagre')
