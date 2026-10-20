@@ -1,11 +1,12 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { todayISO } from './date'
 import { uid } from './id'
+import { setLabelRegistry } from './labels'
 import { descendantIds } from './projects'
 import { nextOccurrence } from './recurrence'
 import { seedData } from './seed'
 import { useSync } from './sync'
-import type { AppData, Page, Project, Task } from './types'
+import type { AppData, Label, Page, Project, Task } from './types'
 
 const STORAGE_KEY = 'minapp:v1'
 
@@ -14,7 +15,7 @@ export const PROJECT_COLORS = ['#6a5ae0', '#3b82f6', '#22a06b', '#e5484d', '#f59
 function load(): AppData {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
-    if (raw) return JSON.parse(raw) as AppData
+    if (raw) return { labels: [], ...(JSON.parse(raw) as Partial<AppData>) } as AppData
   } catch {
     // Ødelagt eller utilgjengelig lagring – start med eksempeldata.
   }
@@ -33,6 +34,7 @@ function useStoreValue() {
   }, [data])
 
   const sync = useSync(data, setData)
+  setLabelRegistry(data.labels)
 
   const addTask = useCallback((task: Omit<Task, 'id' | 'createdAt' | 'done'>) => {
     const t: Task = { ...task, id: uid(), createdAt: Date.now(), done: false }
@@ -93,6 +95,43 @@ function useStoreValue() {
     })
   }, [])
 
+  /** Setter farge på en etikett (lager innstillingen hvis den ikke finnes). */
+  const setLabelColor = useCallback((name: string, color: string) => {
+    setData((d) => {
+      const existing = d.labels.find((l) => l.name === name)
+      const labels: Label[] = existing
+        ? d.labels.map((l) => (l.name === name ? { ...l, color } : l))
+        : [...d.labels, { id: uid(), name, color }]
+      return { ...d, labels }
+    })
+  }, [])
+
+  /** Gir etiketten nytt navn på alle oppgaver. Finnes det nye navnet fra før, slås de sammen. */
+  const renameLabel = useCallback((from: string, to: string) => {
+    if (!to || from === to) return
+    setData((d) => {
+      const target = d.labels.find((l) => l.name === to)
+      const labels = target ? d.labels.filter((l) => l.name !== from) : d.labels.map((l) => (l.name === from ? { ...l, name: to } : l))
+      const tasks = d.tasks.map((t) =>
+        t.labels?.includes(from) ? { ...t, labels: [...new Set(t.labels.map((l) => (l === from ? to : l)))] } : t,
+      )
+      return { ...d, labels, tasks }
+    })
+  }, [])
+
+  /** Fjerner etiketten fra alle oppgaver. Oppgavene beholdes. */
+  const deleteLabel = useCallback((name: string) => {
+    setData((d) => ({
+      ...d,
+      labels: d.labels.filter((l) => l.name !== name),
+      tasks: d.tasks.map((t) => {
+        if (!t.labels?.includes(name)) return t
+        const rest = t.labels.filter((l) => l !== name)
+        return { ...t, labels: rest.length ? rest : undefined }
+      }),
+    }))
+  }, [])
+
   const addPage = useCallback(() => {
     const page: Page = { id: uid(), title: '', icon: '📄', blocks: [{ id: uid(), type: 'p', text: '' }], updatedAt: Date.now() }
     setData((d) => ({ ...d, pages: [...d.pages, page] }))
@@ -111,8 +150,8 @@ function useStoreValue() {
   }, [])
 
   return useMemo(
-    () => ({ ...data, sync, addTask, updateTask, toggleTask, deleteTask, addProject, updateProject, deleteProject, addPage, updatePage, deletePage }),
-    [data, sync, addTask, updateTask, toggleTask, deleteTask, addProject, updateProject, deleteProject, addPage, updatePage, deletePage],
+    () => ({ ...data, sync, addTask, updateTask, toggleTask, deleteTask, addProject, updateProject, deleteProject, addPage, updatePage, deletePage, setLabelColor, renameLabel, deleteLabel }),
+    [data, sync, addTask, updateTask, toggleTask, deleteTask, addProject, updateProject, deleteProject, addPage, updatePage, deletePage, setLabelColor, renameLabel, deleteLabel],
   )
 }
 

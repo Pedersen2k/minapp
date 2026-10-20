@@ -9,7 +9,8 @@ import { reminderMinutes } from '../lib/reminders'
 import { useStore } from '../lib/store'
 import type { Task } from '../lib/types'
 import { useOpenTask } from '../lib/ui-context'
-import { Dot, PRIORITY_COLOR } from './ui'
+import { ProjectIcon } from './ProjectIcon'
+import { PRIORITY_COLOR } from './ui'
 
 interface Props {
   task: Task
@@ -89,8 +90,7 @@ export function TaskItem({ task, showProject = true, showDate = true, container,
   return (
     <li
       ref={sortable.setNodeRef}
-      {...sortable.attributes}
-      {...sortable.listeners}
+      {...(container ? { ...sortable.attributes, ...sortable.listeners } : {})}
       onClick={() => openTask(task.id)}
       className={`group flex cursor-pointer touch-manipulation items-start gap-3 rounded-2xl select-none [-webkit-touch-callout:none] border border-glass-border px-4 py-3 transition-all duration-300 hover:bg-card-hover ${
         completing && !task.done ? 'scale-[0.98] opacity-40' : ''
@@ -138,7 +138,7 @@ export function TaskItem({ task, showProject = true, showDate = true, container,
           ))}
           {showProject && project && (
             <span className="inline-flex items-center gap-1.5 text-muted">
-              <Dot color={project.color} /> {project.name}
+              <ProjectIcon project={project} size="sm" /> {project.name}
             </span>
           )}
         </div>

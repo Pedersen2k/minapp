@@ -2,7 +2,7 @@ import type { PostgrestError, Session } from '@supabase/supabase-js'
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react'
 import { remindAt } from './reminders'
 import { supabase } from './supabase'
-import type { AppData, Page, Project, Task } from './types'
+import type { AppData, Label, Page, Project, Task } from './types'
 
 /**
  * Lokal-først synk mot Supabase.
@@ -13,9 +13,9 @@ import type { AppData, Page, Project, Task } from './types'
  * Endringer fra andre enheter kommer inn via sanntid og når appen får fokus igjen.
  */
 
-type Table = 'projects' | 'tasks' | 'pages'
+type Table = 'projects' | 'tasks' | 'pages' | 'labels'
 type Row = Record<string, unknown>
-type Item = Task | Project | Page
+type Item = Task | Project | Page | Label
 
 interface Op {
   table: Table
@@ -27,7 +27,7 @@ interface Op {
 export type SyncStatus = 'local' | 'syncing' | 'synced' | 'offline'
 
 // Prosjekter først, så oppgaver som peker på dem finnes når de lastes opp.
-const TABLES: Table[] = ['projects', 'tasks', 'pages']
+const TABLES: Table[] = ['projects', 'tasks', 'pages', 'labels']
 const QUEUE_KEY = 'minapp:queue'
 const OWNER_KEY = 'minapp:owner'
 const REMIND_BACKFILL_KEY = 'minapp:remind-backfill'
@@ -37,6 +37,10 @@ const ms = (s: unknown) => new Date(s as string).getTime()
 
 function toRow(table: Table, item: Item): Row {
   const now = new Date().toISOString()
+  if (table === 'labels') {
+    const l = item as Label
+    return { id: l.id, name: l.name, color: l.color, updated_at: now }
+  }
   if (table === 'projects') {
     const p = item as Project
     return {
@@ -44,6 +48,7 @@ function toRow(table: Table, item: Item): Row {
       name: p.name,
       color: p.color,
       parent_id: p.parentId ?? null,
+      icon: p.icon ?? null,
       position: p.position ?? null,
       view: p.view ?? null,
       columns: p.columns ?? [],
@@ -78,10 +83,12 @@ function toRow(table: Table, item: Item): Row {
 }
 
 function fromRow(table: Table, r: Row): Item {
+  if (table === 'labels') return { id: r.id, name: r.name, color: r.color } as Label
   if (table === 'projects') {
     const p = { id: r.id, name: r.name, color: r.color } as Project
     if (r.parent_id) p.parentId = r.parent_id as string
     if (r.position != null) p.position = r.position as number
+    if (r.icon) p.icon = r.icon as string
     if (r.view) p.view = r.view as Project['view']
     if (Array.isArray(r.columns) && r.columns.length > 0) p.columns = r.columns as Project['columns']
     return p

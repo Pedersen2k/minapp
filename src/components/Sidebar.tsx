@@ -1,15 +1,17 @@
 import { useDroppable } from '@dnd-kit/core'
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { AtSign, Bell, BellOff, BellRing, CalendarDays, CalendarRange, Cloud, CloudOff, FilePlus, HardDrive, Inbox, LogOut, Monitor, Moon, Plus, RefreshCw, Search, Sun } from 'lucide-react'
+import { AtSign, Bell, BellOff, BellRing, CalendarDays, CheckCircle2, Pencil, CalendarRange, Cloud, CloudOff, FilePlus, HardDrive, Inbox, LogOut, Monitor, Moon, Plus, RefreshCw, Search, Sun } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
 import { todayISO } from '../lib/date'
 import { allLabels, labelColor } from '../lib/labels'
 import { disablePush, enablePush, pushState, sendTestPush, type PushState } from '../lib/push'
 import { sortByPosition } from '../lib/order'
 import { childrenOf, topLevel } from '../lib/projects'
+import { useEdit } from '../lib/ui-context'
 import { useStore } from '../lib/store'
 import type { Page, Project, View } from '../lib/types'
+import { ProjectIcon } from './ProjectIcon'
 import { Kbd, modKey } from './ui'
 
 export type Theme = 'light' | 'dark' | 'system'
@@ -52,6 +54,23 @@ function NavItem({ active, icon, label, count, onClick, indent, dropHighlight, d
   )
 }
 
+/** Legger en blyant på raden ved hover (PC). På mobil redigeres fra overskriften i visningen. */
+function WithEdit({ label, onEdit, children }: { label: string; onEdit: () => void; children: ReactNode }) {
+  return (
+    <div className="group/edit relative">
+      {children}
+      <button
+        onClick={onEdit}
+        aria-label={`Rediger ${label}`}
+        title="Rediger"
+        className="absolute top-1/2 right-1.5 hidden size-7 -translate-y-1/2 place-items-center rounded-lg bg-surface text-muted shadow-sm hover:text-accent md:group-hover/edit:grid"
+      >
+        <Pencil size={13} />
+      </button>
+    </div>
+  )
+}
+
 /** Prosjekt i menyen: kan sorteres blant søsken, og tar imot oppgaver som slippes på det. */
 function SortableProject({ project, ...rest }: { project: Project } & Omit<NavItemProps, 'dnd' | 'dropHighlight'>) {
   const s = useSortable({ id: `nav-project:${project.id}`, data: { type: 'project', project } })
@@ -81,15 +100,6 @@ function DroppableNav({ target, ...rest }: { target: 'inbox' | 'today' } & Omit<
   return <NavItem {...rest} dropHighlight={d.isOver && d.active?.data.current?.type === 'task'} dnd={{ setNodeRef: d.setNodeRef, attributes: {} }} />
 }
 
-function ProjectDot({ color, small }: { color: string; small?: boolean }) {
-  return (
-    <span
-      className={`inline-block shrink-0 rounded-full ${small ? 'size-[7px]' : 'size-2.5'}`}
-      style={{ background: color, boxShadow: `0 0 0 ${small ? 3 : 4}px color-mix(in srgb, ${color} 16%, transparent)` }}
-    />
-  )
-}
-
 function SectionTitle({ children, onAdd, label }: { children: ReactNode; onAdd: () => void; label: string }) {
   return (
     <div className="mt-6 mb-1 flex items-center justify-between pr-1 pl-3">
@@ -109,6 +119,7 @@ export function Sidebar({ view, onNavigate, onSearch, theme, onTheme }: Props) {
   const is = (v: View) => JSON.stringify(v) === JSON.stringify(view)
   const countFor = (p: Project) => open.filter((t) => t.projectId === p.id).length
   const labels = allLabels(tasks)
+  const { editProject, editLabel } = useEdit()
 
   const themeIcon = { light: <Sun size={15} />, dark: <Moon size={15} />, system: <Monitor size={15} /> }
   const themeLabel = { light: 'Lys', dark: 'Mørk', system: 'System' }
@@ -143,6 +154,7 @@ export function Sidebar({ view, onNavigate, onSearch, theme, onTheme }: Props) {
         <DroppableNav target="today" active={is({ type: 'today' })} icon={<Sun size={18} className="text-[#f59e0b]" />} label="I dag" count={open.filter((t) => t.due && t.due <= today).length} onClick={() => onNavigate({ type: 'today' })} />
         <NavItem active={is({ type: 'upcoming' })} icon={<CalendarRange size={18} className="text-[#e5484d]" />} label="Kommende" onClick={() => onNavigate({ type: 'upcoming' })} />
         <NavItem active={is({ type: 'calendar' })} icon={<CalendarDays size={18} className="text-[#0ea5e9]" />} label="Kalender" onClick={() => onNavigate({ type: 'calendar' })} />
+        <NavItem active={is({ type: 'done' })} icon={<CheckCircle2 size={18} className="text-[#22a06b]" />} label="Fullført" onClick={() => onNavigate({ type: 'done' })} />
 
         <SectionTitle label="Nytt prosjekt" onAdd={() => setNewProject('')}>Prosjekter</SectionTitle>
         <SortableContext items={sortByPosition(topLevel(projects)).map((p) => `nav-project:${p.id}`)} strategy={verticalListSortingStrategy}>
@@ -150,10 +162,14 @@ export function Sidebar({ view, onNavigate, onSearch, theme, onTheme }: Props) {
             const kids = sortByPosition(childrenOf(projects, p.id))
             return (
               <div key={p.id}>
-                <SortableProject project={p} active={is({ type: 'project', id: p.id })} icon={<ProjectDot color={p.color} />} label={p.name} count={countFor(p)} onClick={() => onNavigate({ type: 'project', id: p.id })} />
+                <WithEdit label={p.name} onEdit={() => editProject(p.id)}>
+                  <SortableProject project={p} active={is({ type: 'project', id: p.id })} icon={<ProjectIcon project={p} />} label={p.name} count={countFor(p)} onClick={() => onNavigate({ type: 'project', id: p.id })} />
+                </WithEdit>
                 <SortableContext items={kids.map((c) => `nav-project:${c.id}`)} strategy={verticalListSortingStrategy}>
                   {kids.map((c) => (
-                    <SortableProject key={c.id} project={c} indent active={is({ type: 'project', id: c.id })} icon={<ProjectDot color={c.color} small />} label={c.name} count={countFor(c)} onClick={() => onNavigate({ type: 'project', id: c.id })} />
+                    <WithEdit key={c.id} label={c.name} onEdit={() => editProject(c.id)}>
+                      <SortableProject project={c} indent active={is({ type: 'project', id: c.id })} icon={<ProjectIcon project={c} size="sm" />} label={c.name} count={countFor(c)} onClick={() => onNavigate({ type: 'project', id: c.id })} />
+                    </WithEdit>
                   ))}
                 </SortableContext>
               </div>
@@ -184,7 +200,9 @@ export function Sidebar({ view, onNavigate, onSearch, theme, onTheme }: Props) {
           <>
             <div className="mt-6 mb-1 pl-3 text-xs font-semibold text-muted">Etiketter</div>
             {labels.map((l) => (
-              <NavItem key={l.name} active={is({ type: 'label', name: l.name })} icon={<AtSign size={16} style={{ color: labelColor(l.name) }} />} label={l.name} count={l.count} onClick={() => onNavigate({ type: 'label', name: l.name })} />
+              <WithEdit key={l.name} label={l.name} onEdit={() => editLabel(l.name)}>
+                <NavItem active={is({ type: 'label', name: l.name })} icon={<AtSign size={16} style={{ color: labelColor(l.name) }} />} label={l.name} count={l.count} onClick={() => onNavigate({ type: 'label', name: l.name })} />
+              </WithEdit>
             ))}
           </>
         )}

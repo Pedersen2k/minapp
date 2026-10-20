@@ -1,6 +1,7 @@
 import { Menu, Plus, Search } from 'lucide-react'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { CommandPalette } from './components/CommandPalette'
+import { LabelDialog, ProjectDialog } from './components/EditDialogs'
 import { Login } from './components/Login'
 import { PageEditor } from './components/PageEditor'
 import { QuickAdd } from './components/QuickAdd'
@@ -11,7 +12,7 @@ import { todayISO } from './lib/date'
 import { useRoute } from './lib/route'
 import { useStore } from './lib/store'
 import { DragProvider } from './lib/dnd'
-import { OpenTaskContext } from './lib/ui-context'
+import { EditContext, OpenTaskContext } from './lib/ui-context'
 
 const THEME_KEY = 'minapp:theme'
 
@@ -56,6 +57,14 @@ function Workspace() {
   const [drawer, setDrawer] = useState(false)
   const [palette, setPalette] = useState(false)
   const [quickAdd, setQuickAdd] = useState(false)
+  const [editing, setEditing] = useState<{ kind: 'project'; id: string } | { kind: 'label'; name: string } | null>(null)
+  const editApi = useMemo(
+    () => ({
+      editProject: (id: string) => setEditing({ kind: 'project', id }),
+      editLabel: (name: string) => setEditing({ kind: 'label', name }),
+    }),
+    [],
+  )
 
   const go = useCallback(
     (v: Parameters<typeof navigate>[0]) => {
@@ -96,7 +105,7 @@ function Workspace() {
         ? projects.find((p) => p.id === view.id)?.name ?? ''
         : view.type === 'label'
           ? `@${view.name}`
-          : { inbox: 'Innboks', today: 'I dag', upcoming: 'Kommende', calendar: 'Kalender' }[view.type]
+          : { inbox: 'Innboks', today: 'I dag', upcoming: 'Kommende', calendar: 'Kalender', done: 'Fullført' }[view.type]
 
   // Tavle og kalender trenger bredden; lister og sider leses best smalt.
   const wide = (view.type === 'project' && projects.find((p) => p.id === view.id)?.view === 'board') || view.type === 'calendar'
@@ -106,6 +115,7 @@ function Workspace() {
 
   return (
     <OpenTaskContext.Provider value={openTask}>
+      <EditContext.Provider value={editApi}>
       <DragProvider>
       <div className="flex h-full md:gap-4 md:p-4">
         {/* Sidemeny: flytende glasspanel på PC, skuff på mobil */}
@@ -174,11 +184,15 @@ function Workspace() {
 
         {taskId && <TaskDetail taskId={taskId} onClose={closeTask} />}
 
+        {editing?.kind === 'project' && <ProjectDialog projectId={editing.id} onClose={() => setEditing(null)} onNavigate={go} />}
+        {editing?.kind === 'label' && <LabelDialog key={editing.name} name={editing.name} onClose={() => setEditing(null)} onNavigate={go} />}
+
         {palette && (
           <CommandPalette onClose={() => setPalette(false)} onNavigate={go} onNewTask={openQuickAdd} onToggleTheme={toggleTheme} onOpenTask={openTask} />
         )}
       </div>
       </DragProvider>
+      </EditContext.Provider>
     </OpenTaskContext.Provider>
   )
 }

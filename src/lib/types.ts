@@ -37,6 +37,7 @@ export interface Project {
   id: string
   name: string
   color: string
+  icon?: string // emoji; uten ikon vises en farget prikk
   parentId?: string
   position?: number
   view?: 'list' | 'board'
@@ -61,10 +62,18 @@ export interface Page {
   updatedAt: number
 }
 
+/** Innstillinger for en etikett. Selve etikettene ligger som navn på oppgavene. */
+export interface Label {
+  id: string
+  name: string
+  color: string
+}
+
 export interface AppData {
   tasks: Task[]
   projects: Project[]
   pages: Page[]
+  labels: Label[]
 }
 
 export type View =
@@ -72,6 +81,7 @@ export type View =
   | { type: 'today' }
   | { type: 'upcoming' }
   | { type: 'calendar' }
+  | { type: 'done' }
   | { type: 'project'; id: string }
   | { type: 'label'; name: string }
   | { type: 'page'; id: string }

@@ -1,9 +1,18 @@
-import type { Task } from './types'
+import type { Label, Task } from './types'
 
-const LABEL_COLORS = ['#6a5ae0', '#0ea5e9', '#22a06b', '#f59e0b', '#ec4899', '#14b8a6', '#e5484d', '#8b5cf6']
+export const LABEL_COLORS = ['#6a5ae0', '#0ea5e9', '#22a06b', '#f59e0b', '#ec4899', '#14b8a6', '#e5484d', '#8b5cf6']
 
-/** Fast farge per etikett, avledet av navnet. */
+// Egendefinerte farger, oppdatert av StoreProvider før hver rendring. Holdes her så
+// labelColor() kan brukes overalt uten å sende etikettlisten gjennom alle komponenter.
+let customColors = new Map<string, string>()
+export function setLabelRegistry(labels: Label[]) {
+  customColors = new Map(labels.map((l) => [l.name, l.color]))
+}
+
+/** Etikettens farge: egendefinert, ellers en fast farge avledet av navnet. */
 export function labelColor(name: string): string {
+  const custom = customColors.get(name)
+  if (custom) return custom
   let h = 0
   for (const c of name) h = (h * 31 + c.charCodeAt(0)) >>> 0
   return LABEL_COLORS[h % LABEL_COLORS.length]

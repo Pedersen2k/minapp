@@ -6,6 +6,7 @@ create table if not exists public.projects (
   user_id uuid not null default auth.uid() references auth.users on delete cascade,
   name text not null,
   color text not null,
+  icon text,
   parent_id uuid references public.projects on delete cascade,
   position double precision,
   view text,
@@ -85,3 +86,18 @@ drop policy if exists "Egne varslingsabonnement" on public.push_subscriptions;
 create policy "Egne varslingsabonnement" on public.push_subscriptions for all to authenticated
   using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
 create index if not exists tasks_remind_idx on public.tasks (remind_at) where done = false;
+
+-- Etiketter: farge per etikett (selve etikettene ligger som navn på oppgavene).
+create table if not exists public.labels (
+  id uuid primary key,
+  user_id uuid not null default auth.uid() references auth.users on delete cascade,
+  name text not null,
+  color text not null,
+  updated_at timestamptz not null default now(),
+  unique (user_id, name)
+);
+alter table public.labels enable row level security;
+drop policy if exists "Egne etiketter" on public.labels;
+create policy "Egne etiketter" on public.labels for all to authenticated
+  using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
+alter publication supabase_realtime add table public.labels;

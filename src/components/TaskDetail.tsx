@@ -10,7 +10,8 @@ import { useStore } from '../lib/store'
 import type { Priority, Recurrence, Subtask, Task } from '../lib/types'
 import { AutoTextarea } from './AutoTextarea'
 import { TaskCheckbox, useCompleteTask } from './TaskItem'
-import { Dot, PRIORITY_COLOR } from './ui'
+import { ProjectIcon } from './ProjectIcon'
+import { PRIORITY_COLOR } from './ui'
 
 function Row({ icon, label, children }: { icon: ReactNode; label: string; children: ReactNode }) {
   return (
@@ -75,7 +76,7 @@ function Panel({ task, projects, onClose, update, remove }: PanelProps) {
         </div>
         <div className="flex items-center justify-between gap-2 px-4 md:px-6">
           <span className="inline-flex items-center gap-2 text-xs font-medium text-muted">
-            {project ? <Dot color={project.color} /> : <Inbox size={13} />}
+            {project ? <ProjectIcon project={project} size="sm" /> : <Inbox size={13} />}
             {project?.name ?? 'Innboks'}
           </span>
           <div className="flex items-center gap-1">
@@ -192,7 +193,7 @@ function Panel({ task, projects, onClose, update, remove }: PanelProps) {
               >
                 <option value="">Innboks</option>
                 {projectTree(projects).map(({ project: p, depth }) => (
-                  <option key={p.id} value={p.id}>{`${'\u00a0\u00a0\u00a0'.repeat(depth)}${p.name}`}</option>
+                  <option key={p.id} value={p.id}>{`${'\u00a0\u00a0\u00a0'.repeat(depth)}${p.icon ? `${p.icon} ` : ''}${p.name}`}</option>
                 ))}
               </select>
             </Row>

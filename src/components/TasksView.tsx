@@ -5,11 +5,13 @@ import { defaultColumns } from '../lib/board'
 import { labelColor } from '../lib/labels'
 import { byTaskOrder } from '../lib/order'
 import { childrenOf } from '../lib/projects'
-import { PROJECT_COLORS, useStore } from '../lib/store'
+import { useEdit } from '../lib/ui-context'
+import { useStore } from '../lib/store'
 import type { Task, View } from '../lib/types'
 import { BoardView } from './BoardView'
 import { CalendarView } from './CalendarView'
 import { InlineQuickAdd } from './QuickAdd'
+import { ProjectIcon } from './ProjectIcon'
 import { List } from './TaskList'
 
 // Datoliste (forfalt, senere): dato først, så manuell rekkefølge. Ellers bare manuell rekkefølge.
@@ -102,6 +104,7 @@ interface TasksViewProps {
 
 export function TasksView({ view, onNavigate }: TasksViewProps) {
   const store = useStore()
+  const edit = useEdit()
   const today = todayISO()
   const open = store.tasks.filter((t) => !t.done).sort(byTaskOrder)
 
@@ -179,6 +182,8 @@ export function TasksView({ view, onNavigate }: TasksViewProps) {
     )
   }
 
+  if (view.type === 'done') return <DoneView />
+
   if (view.type === 'label') {
     const tasks = open.filter((t) => t.labels?.includes(view.name))
     const color = labelColor(view.name)
@@ -188,6 +193,11 @@ export function TasksView({ view, onNavigate }: TasksViewProps) {
           title={view.name}
           eyebrow={`Etikett · ${tasks.length} ${tasks.length === 1 ? 'oppgave' : 'oppgaver'}`}
           icon={<span className="grid size-9 shrink-0 place-items-center rounded-xl" style={{ color, background: `color-mix(in srgb, ${color} 14%, transparent)` }}><AtSign size={20} /></span>}
+          actions={
+            <button onClick={() => edit.editLabel(view.name)} className="flex h-9 items-center gap-2 rounded-xl border border-glass-border bg-card px-3 text-[13px] font-medium hover:bg-card-hover">
+              <Pencil size={15} /> <span className="hidden sm:inline">Rediger</span>
+            </button>
+          }
         />
         <List tasks={tasks} container={{ kind: 'static', id: `label:${view.name}` }} />
         {tasks.length === 0 && <Empty text="Ingen åpne oppgaver med denne etiketten" />}
@@ -202,7 +212,7 @@ function ProjectView({ id, onNavigate }: { id: string; onNavigate: (v: View) => 
   const { projects, tasks, addProject, updateProject, deleteProject } = useStore()
   const [showDone, setShowDone] = useState(false)
   const [menu, setMenu] = useState(false)
-  const [renaming, setRenaming] = useState(false)
+  const { editProject } = useEdit()
   const [newSub, setNewSub] = useState<string | null>(null)
   const project = projects.find((p) => p.id === id)
   if (!project) return <Empty text="Fant ikke prosjektet" />
@@ -224,25 +234,12 @@ function ProjectView({ id, onNavigate }: { id: string; onNavigate: (v: View) => 
     <>
       <Header
         eyebrow={parent ? parent.name : `${open.length} åpne · ${done.length} fullført`}
-        icon={<span className="size-3.5 shrink-0 rounded-full" style={{ background: project.color, boxShadow: `0 0 0 5px color-mix(in srgb, ${project.color} 18%, transparent)` }} />}
+        icon={<ProjectIcon project={project} size="lg" />}
         title={
-          renaming ? (
-            <input
-              autoFocus
-              defaultValue={project.name}
-              onBlur={(e) => {
-                if (e.target.value.trim()) updateProject(id, { name: e.target.value.trim() })
-                setRenaming(false)
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') e.currentTarget.blur()
-                if (e.key === 'Escape') setRenaming(false)
-              }}
-              className="w-full bg-transparent outline-none"
-            />
-          ) : (
-            project.name
-          )
+          <button onClick={() => editProject(id)} className="group flex max-w-full items-center gap-2 text-left" title="Rediger prosjekt">
+            <span className="truncate">{project.name}</span>
+            <Pencil size={18} className="shrink-0 text-faint transition group-hover:text-accent" />
+          </button>
         }
         actions={
           <div className="flex items-center gap-2">
@@ -262,28 +259,14 @@ function ProjectView({ id, onNavigate }: { id: string; onNavigate: (v: View) => 
               <>
                 <div className="fixed inset-0 z-10" onClick={() => setMenu(false)} />
                 <div className="glass-strong animate-rise absolute right-0 z-20 mt-2 w-60 rounded-2xl p-1.5">
-                  <button onClick={() => { setRenaming(true); setMenu(false) }} className={menuItem}>
-                    <Pencil size={15} /> Gi nytt navn
+                  <button onClick={() => { editProject(id); setMenu(false) }} className={menuItem}>
+                    <Pencil size={15} /> Rediger navn, ikon og farge
                   </button>
                   {!project.parentId && (
                     <button onClick={() => { setNewSub(''); setMenu(false) }} className={menuItem}>
                       <FolderPlus size={15} /> Legg til underprosjekt
                     </button>
                   )}
-                  <p className="px-3 pt-2 pb-1.5 text-xs font-semibold text-muted">Farge</p>
-                  <div className="grid grid-cols-8 gap-1 px-2 pb-2">
-                    {PROJECT_COLORS.map((c) => (
-                      <button
-                        key={c}
-                        onClick={() => updateProject(id, { color: c })}
-                        aria-label={`Farge ${c}`}
-                        className="grid size-6 place-items-center rounded-full transition hover:scale-110"
-                        style={{ background: c }}
-                      >
-                        {project.color === c && <Check size={13} strokeWidth={3} className="text-white" />}
-                      </button>
-                    ))}
-                  </div>
                   <div className="my-1 h-px bg-line" />
                   <button
                     onClick={() => {
@@ -360,6 +343,60 @@ function ProjectView({ id, onNavigate }: { id: string; onNavigate: (v: View) => 
       )}
       </>
       )}
+    </>
+  )
+}
+
+/** Alle fullførte oppgaver, nyeste først, gruppert etter dagen de ble fullført. */
+function DoneView() {
+  const { tasks, projects } = useStore()
+  const [projectFilter, setProjectFilter] = useState('')
+  const [limit, setLimit] = useState(50)
+  const done = tasks
+    .filter((t) => t.done && (!projectFilter || t.projectId === projectFilter || (projectFilter === 'inbox' && !t.projectId)))
+    .sort((a, b) => (b.completedAt ?? 0) - (a.completedAt ?? 0))
+  const shown = done.slice(0, limit)
+
+  const groups: { day: string; tasks: Task[] }[] = []
+  for (const t of shown) {
+    const day = t.completedAt ? new Date(t.completedAt).toLocaleDateString('sv-SE') : 'ukjent' // sv-SE gir YYYY-MM-DD
+    const g = groups[groups.length - 1]
+    if (g?.day === day) g.tasks.push(t)
+    else groups.push({ day, tasks: [t] })
+  }
+
+  return (
+    <>
+      <Header
+        title="Fullført"
+        eyebrow={`${done.length} ${done.length === 1 ? 'oppgave' : 'oppgaver'}`}
+        icon={<span className="grid size-9 shrink-0 place-items-center rounded-xl bg-[#22a06b]/15 text-[#22a06b]"><Check size={20} strokeWidth={2.5} /></span>}
+        actions={
+          <select
+            value={projectFilter}
+            onChange={(e) => { setProjectFilter(e.target.value); setLimit(50) }}
+            aria-label="Filtrer på prosjekt"
+            className="h-9 max-w-40 cursor-pointer rounded-xl border border-glass-border bg-card px-2.5 text-[13px] font-medium outline-none"
+          >
+            <option value="">Alle prosjekter</option>
+            <option value="inbox">Innboks</option>
+            {projects.map((p) => (
+              <option key={p.id} value={p.id}>{p.name}</option>
+            ))}
+          </select>
+        }
+      />
+      {groups.map((g) => (
+        <Section key={g.day} title={g.day === 'ukjent' ? 'Tidligere' : `${formatDue(g.day)} · ${formatLong(g.day)}`}>
+          <List tasks={g.tasks} />
+        </Section>
+      ))}
+      {done.length > limit && (
+        <button onClick={() => setLimit(limit + 50)} className="w-full rounded-2xl border border-glass-border bg-card py-3 text-sm font-medium text-accent hover:bg-card-hover">
+          Vis flere ({done.length - limit} til)
+        </button>
+      )}
+      {done.length === 0 && <Empty text="Ingen fullførte oppgaver ennå" />}
     </>
   )
 }

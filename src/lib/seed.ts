@@ -16,6 +16,7 @@ export function seedData(): AppData {
 
   return {
     projects: [hjem, jobb, helse],
+    labels: [],
     tasks: [
       t('Prøv hurtiglegging: skriv «Handle melk i morgen #hjem p2»', { due: today, priority: 1 }),
       t('Trykk Ctrl/⌘ + K for å søke overalt', { due: today, priority: 3 }),
