@@ -37,7 +37,16 @@ function toRow(table: Table, item: Item): Row {
   const now = new Date().toISOString()
   if (table === 'projects') {
     const p = item as Project
-    return { id: p.id, name: p.name, color: p.color, parent_id: p.parentId ?? null, position: p.position ?? null, updated_at: now }
+    return {
+      id: p.id,
+      name: p.name,
+      color: p.color,
+      parent_id: p.parentId ?? null,
+      position: p.position ?? null,
+      view: p.view ?? null,
+      columns: p.columns ?? [],
+      updated_at: now,
+    }
   }
   if (table === 'tasks') {
     const t = item as Task
@@ -53,6 +62,7 @@ function toRow(table: Table, item: Item): Row {
       recurrence: t.recurrence ?? null,
       subtasks: t.subtasks ?? [],
       labels: t.labels ?? [],
+      column_id: t.columnId ?? null,
       position: t.position ?? null,
       created_at: iso(t.createdAt),
       completed_at: t.completedAt ? iso(t.completedAt) : null,
@@ -68,6 +78,8 @@ function fromRow(table: Table, r: Row): Item {
     const p = { id: r.id, name: r.name, color: r.color } as Project
     if (r.parent_id) p.parentId = r.parent_id as string
     if (r.position != null) p.position = r.position as number
+    if (r.view) p.view = r.view as Project['view']
+    if (Array.isArray(r.columns) && r.columns.length > 0) p.columns = r.columns as Project['columns']
     return p
   }
   if (table === 'tasks') {
@@ -86,6 +98,7 @@ function fromRow(table: Table, r: Row): Item {
     if (r.recurrence) t.recurrence = r.recurrence as Task['recurrence']
     if (Array.isArray(r.subtasks) && r.subtasks.length > 0) t.subtasks = r.subtasks as Task['subtasks']
     if (Array.isArray(r.labels) && r.labels.length > 0) t.labels = r.labels as string[]
+    if (r.column_id) t.columnId = r.column_id as string
     if (r.position != null) t.position = r.position as number
     return t
   }

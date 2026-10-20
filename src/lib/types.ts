@@ -20,9 +20,16 @@ export interface Task {
   recurrence?: Recurrence
   subtasks?: Subtask[]
   labels?: string[]
+  columnId?: string // kolonne på kanban-tavlen
   position?: number // manuell rekkefølge; mangler den, brukes createdAt
   createdAt: number
   completedAt?: number
+}
+
+export interface Column {
+  id: string
+  name: string
+  done?: boolean // oppgaver som slippes her, hukes av
 }
 
 export interface Project {
@@ -31,6 +38,8 @@ export interface Project {
   color: string
   parentId?: string
   position?: number
+  view?: 'list' | 'board'
+  columns?: Column[]
 }
 
 export type BlockType = 'p' | 'h1' | 'h2' | 'todo' | 'bullet' | 'quote'

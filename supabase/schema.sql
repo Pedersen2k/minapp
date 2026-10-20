@@ -8,6 +8,8 @@ create table if not exists public.projects (
   color text not null,
   parent_id uuid references public.projects on delete cascade,
   position double precision,
+  view text,
+  columns jsonb not null default '[]',
   updated_at timestamptz not null default now()
 );
 
@@ -24,6 +26,7 @@ create table if not exists public.tasks (
   recurrence text check (recurrence in ('daily', 'weekdays', 'weekly', 'biweekly', 'monthly', 'yearly')),
   subtasks jsonb not null default '[]',
   labels text[] not null default '{}',
+  column_id text,
   position double precision,
   created_at timestamptz not null default now(),
   completed_at timestamptz,

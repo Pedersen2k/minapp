@@ -26,10 +26,23 @@ export type TaskContainer =
   | { kind: 'due'; date: string }
   | { kind: 'project'; id: string }
   | { kind: 'inbox' }
+  | { kind: 'column'; projectId: string; columnId: string; done?: boolean }
   | { kind: 'static'; id: string } // bare omsortering, f.eks. «Forfalt» og etikettvisninger
 
-export const containerKey = (c: TaskContainer) =>
-  c.kind === 'due' ? `due:${c.date}` : c.kind === 'project' ? `project:${c.id}` : c.kind === 'inbox' ? 'inbox' : `static:${c.id}`
+export function containerKey(c: TaskContainer): string {
+  switch (c.kind) {
+    case 'due':
+      return `due:${c.date}`
+    case 'project':
+      return `project:${c.id}`
+    case 'inbox':
+      return 'inbox'
+    case 'column':
+      return `column:${c.columnId}`
+    case 'static':
+      return `static:${c.id}`
+  }
+}
 
 export type DragData =
   | { type: 'task'; task: Task; container: TaskContainer; items: Task[] }
@@ -42,6 +55,10 @@ function patchFor(c: TaskContainer): Partial<Task> {
   if (c.kind === 'due') return { due: c.date }
   if (c.kind === 'project') return { projectId: c.id }
   if (c.kind === 'inbox') return { projectId: undefined }
+  if (c.kind === 'column') {
+    // Ferdig-kolonnen huker av; ut av den gjør oppgaven åpen igjen.
+    return c.done ? { done: true, completedAt: Date.now() } : { columnId: c.columnId, done: false, completedAt: undefined }
+  }
   return {}
 }
 
@@ -52,7 +69,7 @@ const collision: CollisionDetection = (args) => {
 }
 
 export function DragProvider({ children }: { children: ReactNode }) {
-  const { projects, pages, updateTask, updateProject, updatePage } = useStore()
+  const { projects, pages, updateTask, toggleTask, updateProject, updatePage } = useStore()
   const [active, setActive] = useState<DragData | null>(null)
 
   // Mus: dra etter 6 px, så vanlige klikk fortsatt åpner oppgaven.
@@ -78,6 +95,8 @@ export function DragProvider({ children }: { children: ReactNode }) {
       if (to.type === 'project') return updateTask(task.id, { projectId: to.project.id })
       if (to.type === 'nav') return updateTask(task.id, to.target === 'inbox' ? { projectId: undefined } : { due: todayISO() })
       if (to.type !== 'task' && to.type !== 'container') return
+      // Gjentakende oppgave til «Ferdig»: flytt den til neste gang i stedet for å avslutte den.
+      if (to.container.kind === 'column' && to.container.done && !task.done && task.recurrence) return toggleTask(task.id)
 
       const sameContainer = containerKey(to.container) === containerKey(from.container)
       const list = to.items.filter((t) => t.id !== task.id)

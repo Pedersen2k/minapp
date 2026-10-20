@@ -1,16 +1,16 @@
-import { useDroppable } from '@dnd-kit/core'
-import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
-import { AtSign, Check, ChevronRight, FolderPlus, MoreHorizontal, Pencil, Sparkles, Trash2 } from 'lucide-react'
+import { AtSign, CalendarDays, Check, ChevronRight, Columns3, FolderPlus, List as ListIcon, MoreHorizontal, Pencil, Sparkles, Trash2 } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { addDays, formatDue, formatLong, todayISO } from '../lib/date'
-import { containerKey, type TaskContainer } from '../lib/dnd'
+import { defaultColumns } from '../lib/board'
 import { labelColor } from '../lib/labels'
 import { byTaskOrder } from '../lib/order'
 import { childrenOf } from '../lib/projects'
 import { PROJECT_COLORS, useStore } from '../lib/store'
 import type { Task, View } from '../lib/types'
+import { BoardView } from './BoardView'
+import { CalendarView } from './CalendarView'
 import { InlineQuickAdd } from './QuickAdd'
-import { TaskItem } from './TaskItem'
+import { List } from './TaskList'
 
 // Datoliste (forfalt, senere): dato først, så manuell rekkefølge. Ellers bare manuell rekkefølge.
 const byDueThenOrder = (a: Task, b: Task) => (a.due ?? '9999').localeCompare(b.due ?? '9999') || byTaskOrder(a, b)
@@ -54,21 +54,6 @@ function Empty({ text }: { text: string }) {
   )
 }
 
-/** Sorterbar oppgaveliste. Hele listen er også et slippområde, så tomme dager og prosjekter kan ta imot oppgaver. */
-function List({ tasks, container, showProject, showDate }: { tasks: Task[]; container?: TaskContainer; showProject?: boolean; showDate?: boolean }) {
-  const key = container ? containerKey(container) : 'none'
-  const { setNodeRef, isOver } = useDroppable({ id: `list:${key}`, data: { type: 'container', container, items: tasks }, disabled: !container })
-  return (
-    <SortableContext id={key} items={tasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
-      <ul ref={setNodeRef} className={`flex flex-col gap-2 rounded-2xl transition ${tasks.length ? 'mb-2.5' : 'min-h-2'} ${isOver && !tasks.length ? 'min-h-14 bg-accent-soft' : ''}`}>
-        {tasks.map((t) => (
-          <TaskItem key={t.id} task={t} container={container} items={tasks} showProject={showProject} showDate={showDate} />
-        ))}
-      </ul>
-    </SortableContext>
-  )
-}
-
 /** Fremdriftsring: «2 av 5 gjort i dag». */
 function Progress({ done, total }: { done: number; total: number }) {
   const pct = total ? done / total : 0
@@ -89,7 +74,37 @@ function Progress({ done, total }: { done: number; total: number }) {
   )
 }
 
-export function TasksView({ view, onNavigate }: { view: Exclude<View, { type: 'page' }>; onNavigate: (v: View) => void }) {
+function Segmented<T extends string>({ value, options, onChange }: { value: T; options: { value: T; label: string; icon: ReactNode }[]; onChange: (v: T) => void }) {
+  return (
+    <div role="radiogroup" className="flex shrink-0 rounded-xl border border-glass-border bg-card p-1">
+      {options.map((o) => (
+        <button
+          key={o.value}
+          role="radio"
+          aria-checked={value === o.value}
+          onClick={() => onChange(o.value)}
+          className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[13px] font-medium transition ${
+            value === o.value ? 'bg-surface text-fg shadow-[0_2px_8px_-2px_rgb(60_50_140/0.25)]' : 'text-muted hover:text-fg'
+          }`}
+        >
+          {o.icon}
+          <span className="hidden sm:inline">{o.label}</span>
+        </button>
+      ))}
+    </div>
+  )
+}
+
+export type UpcomingMode = 'list' | 'calendar'
+
+interface TasksViewProps {
+  view: Exclude<View, { type: 'page' }>
+  onNavigate: (v: View) => void
+  upcomingMode: UpcomingMode
+  onUpcomingMode: (m: UpcomingMode) => void
+}
+
+export function TasksView({ view, onNavigate, upcomingMode, onUpcomingMode }: TasksViewProps) {
   const store = useStore()
   const today = todayISO()
   const open = store.tasks.filter((t) => !t.done).sort(byTaskOrder)
@@ -125,9 +140,27 @@ export function TasksView({ view, onNavigate }: { view: Exclude<View, { type: 'p
   if (view.type === 'upcoming') {
     const days = Array.from({ length: 14 }, (_, i) => addDays(today, i + 1))
     const later = open.filter((t) => t.due && t.due > days[days.length - 1]).sort(byDueThenOrder)
+    const toggle = (
+      <Segmented
+        value={upcomingMode}
+        onChange={onUpcomingMode}
+        options={[
+          { value: 'list', label: 'Liste', icon: <ListIcon size={15} /> },
+          { value: 'calendar', label: 'Kalender', icon: <CalendarDays size={15} /> },
+        ]}
+      />
+    )
+    if (upcomingMode === 'calendar') {
+      return (
+        <>
+          <Header title="Kommende" eyebrow="Kalender" actions={toggle} />
+          <CalendarView />
+        </>
+      )
+    }
     return (
       <>
-        <Header title="Kommende" eyebrow="De neste to ukene" />
+        <Header title="Kommende" eyebrow="De neste to ukene" actions={toggle} />
         {days.map((d, i) => {
           const tasks = open.filter((t) => t.due === d)
           if (tasks.length === 0 && i > 6) return null
@@ -225,6 +258,15 @@ function ProjectView({ id, onNavigate }: { id: string; onNavigate: (v: View) => 
           )
         }
         actions={
+          <div className="flex items-center gap-2">
+          <Segmented
+            value={project.view ?? 'list'}
+            onChange={(v) => updateProject(id, v === 'board' && !project.columns?.length ? { view: v, columns: defaultColumns() } : { view: v })}
+            options={[
+              { value: 'list', label: 'Liste', icon: <ListIcon size={15} /> },
+              { value: 'board', label: 'Tavle', icon: <Columns3 size={15} /> },
+            ]}
+          />
           <div className="relative">
             <button onClick={() => setMenu(!menu)} aria-label="Prosjektvalg" className="grid size-9 place-items-center rounded-xl border border-glass-border bg-card text-muted hover:bg-card-hover">
               <MoreHorizontal size={18} />
@@ -272,8 +314,14 @@ function ProjectView({ id, onNavigate }: { id: string; onNavigate: (v: View) => 
               </>
             )}
           </div>
+          </div>
         }
       />
+
+      {project.view === 'board' ? (
+        <BoardView project={project} />
+      ) : (
+      <>
 
       <List tasks={open} container={{ kind: 'project', id }} showProject={false} />
       <InlineQuickAdd defaults={{ projectId: id }} />
@@ -322,6 +370,8 @@ function ProjectView({ id, onNavigate }: { id: string; onNavigate: (v: View) => 
           </button>
           {showDone && <List tasks={done} showProject={false} />}
         </div>
+      )}
+      </>
       )}
     </>
   )

@@ -6,7 +6,7 @@ import { PageEditor } from './components/PageEditor'
 import { QuickAdd } from './components/QuickAdd'
 import { Sidebar, type Theme } from './components/Sidebar'
 import { TaskDetail } from './components/TaskDetail'
-import { TasksView } from './components/TasksView'
+import { TasksView, type UpcomingMode } from './components/TasksView'
 import { todayISO } from './lib/date'
 import { useRoute } from './lib/route'
 import { useStore } from './lib/store'
@@ -56,6 +56,21 @@ function Workspace() {
   const [drawer, setDrawer] = useState(false)
   const [palette, setPalette] = useState(false)
   const [quickAdd, setQuickAdd] = useState(false)
+  const [upcomingMode, setUpcomingModeState] = useState<UpcomingMode>(() => {
+    try {
+      return localStorage.getItem('minapp:upcoming') === 'calendar' ? 'calendar' : 'list'
+    } catch {
+      return 'list'
+    }
+  })
+  const setUpcomingMode = (m: UpcomingMode) => {
+    setUpcomingModeState(m)
+    try {
+      localStorage.setItem('minapp:upcoming', m)
+    } catch {
+      // ignorer
+    }
+  }
 
   const go = useCallback(
     (v: Parameters<typeof navigate>[0]) => {
@@ -98,6 +113,9 @@ function Workspace() {
           ? `@${view.name}`
           : { inbox: 'Innboks', today: 'I dag', upcoming: 'Kommende' }[view.type]
 
+  // Tavle og kalender trenger bredden; lister og sider leses best smalt.
+  const wide = (view.type === 'project' && projects.find((p) => p.id === view.id)?.view === 'board') || (view.type === 'upcoming' && upcomingMode === 'calendar')
+
   const quickAddDefaults =
     view.type === 'project' ? { projectId: view.id } : view.type === 'today' ? { due: todayISO() } : undefined
 
@@ -132,7 +150,7 @@ function Workspace() {
           </header>
 
           <div className="flex-1 overflow-y-auto">
-            <div className="mx-auto w-full max-w-[720px] px-4 pt-4 pb-36 md:px-12 md:pt-14 md:pb-24">
+            <div className={`mx-auto w-full px-4 pt-4 pb-36 md:px-12 md:pt-14 md:pb-24 ${wide ? 'max-w-[1400px]' : 'max-w-[720px]'}`}>
               {view.type === 'page' ? (
                 page ? (
                   <PageEditor key={page.id} page={page} onDeleted={() => go({ type: 'today' })} />
@@ -140,7 +158,7 @@ function Workspace() {
                   <p className="text-muted">Fant ikke siden.</p>
                 )
               ) : (
-                <TasksView view={view} onNavigate={go} />
+                <TasksView view={view} onNavigate={go} upcomingMode={upcomingMode} onUpcomingMode={setUpcomingMode} />
               )}
             </div>
           </div>
@@ -151,7 +169,7 @@ function Workspace() {
           <div className="pointer-events-none fixed inset-x-0 bottom-0 z-30 px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] md:hidden">
             <button
               onClick={openQuickAdd}
-              className="glass pointer-events-auto flex w-full items-center gap-3 rounded-[26px] py-2 pr-2 pl-5 text-left transition active:scale-[0.98]"
+              className="glass-strong pointer-events-auto flex w-full items-center gap-3 rounded-[26px] py-2 pr-2 pl-5 text-left transition active:scale-[0.98]"
             >
               <span className="flex-1 text-[15px] text-faint">Hva skal gjøres?</span>
               <span className="bg-accent-gradient grid size-11 place-items-center rounded-[18px] text-white shadow-[0_8px_18px_-6px_rgb(91_75_214/0.7)]">
