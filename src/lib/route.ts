@@ -14,12 +14,15 @@ function parseHash(hash: string): Route {
   let view: View = { type: 'today' }
   if (kind === 'project' && id) view = { type: 'project', id }
   else if (kind === 'page' && id) view = { type: 'page', id }
+  else if (kind === 'label' && id) view = { type: 'label', name: decodeURIComponent(id) }
   else if (kind === 'inbox' || kind === 'upcoming') view = { type: kind }
   return { view, taskId }
 }
 
 export function viewToHash(v: View): string {
-  return v.type === 'project' || v.type === 'page' ? `#/${v.type}/${v.id}` : `#/${v.type}`
+  if (v.type === 'project' || v.type === 'page') return `#/${v.type}/${v.id}`
+  if (v.type === 'label') return `#/label/${encodeURIComponent(v.name)}`
+  return `#/${v.type}`
 }
 
 /** Visning og åpen oppgave lagres i URL-en, så tilbake-knappen/-sveipet fungerer på mobil. */

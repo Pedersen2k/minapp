@@ -10,6 +10,7 @@ import { TasksView } from './components/TasksView'
 import { todayISO } from './lib/date'
 import { useRoute } from './lib/route'
 import { useStore } from './lib/store'
+import { DragProvider } from './lib/dnd'
 import { OpenTaskContext } from './lib/ui-context'
 
 const THEME_KEY = 'minapp:theme'
@@ -93,13 +94,16 @@ function Workspace() {
       ? page?.title || 'Uten tittel'
       : view.type === 'project'
         ? projects.find((p) => p.id === view.id)?.name ?? ''
-        : { inbox: 'Innboks', today: 'I dag', upcoming: 'Kommende' }[view.type]
+        : view.type === 'label'
+          ? `@${view.name}`
+          : { inbox: 'Innboks', today: 'I dag', upcoming: 'Kommende' }[view.type]
 
   const quickAddDefaults =
     view.type === 'project' ? { projectId: view.id } : view.type === 'today' ? { due: todayISO() } : undefined
 
   return (
     <OpenTaskContext.Provider value={openTask}>
+      <DragProvider>
       <div className="flex h-full md:gap-4 md:p-4">
         {/* Sidemeny: flytende glasspanel på PC, skuff på mobil */}
         <aside className="glass hidden w-[264px] shrink-0 overflow-hidden rounded-3xl md:block">
@@ -171,6 +175,7 @@ function Workspace() {
           <CommandPalette onClose={() => setPalette(false)} onNavigate={go} onNewTask={openQuickAdd} onToggleTheme={toggleTheme} onOpenTask={openTask} />
         )}
       </div>
+      </DragProvider>
     </OpenTaskContext.Provider>
   )
 }

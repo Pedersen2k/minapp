@@ -8,6 +8,7 @@ export interface ParsedTask {
   priority?: Priority
   project?: string
   recurrence?: Recurrence
+  labels?: string[]
 }
 
 const MONTH_PREFIX: Record<string, number> = {
@@ -47,6 +48,14 @@ export function parseQuickAdd(input: string, now = new Date()): ParsedTask {
   take(/\s#([\p{L}\p{N}_-]+)(?=\s)/u, (m) => {
     out.project = m[1]
   })
+
+  // Etiketter: @handel @telefon (flere er lov). Krever mellomrom foran, så e-postadresser ikke treffes.
+  let label: RegExpMatchArray | null
+  while ((label = s.match(/\s@([\p{L}\p{N}_-]+)(?=\s)/u))) {
+    const name = label[1].toLowerCase()
+    out.labels = [...new Set([...(out.labels ?? []), name])]
+    s = s.replace(label[0], ' ')
+  }
 
   take(/\skl\.?\s*(\d{1,2})(?:[:.](\d{2}))?(?=\s)/iu, (m) => {
     const h = Number(m[1])

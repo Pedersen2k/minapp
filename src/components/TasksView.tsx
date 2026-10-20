@@ -1,20 +1,19 @@
-import { Check, ChevronRight, FolderPlus, MoreHorizontal, Pencil, Sparkles, Trash2 } from 'lucide-react'
+import { useDroppable } from '@dnd-kit/core'
+import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
+import { AtSign, Check, ChevronRight, FolderPlus, MoreHorizontal, Pencil, Sparkles, Trash2 } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { addDays, formatDue, formatLong, todayISO } from '../lib/date'
+import { containerKey, type TaskContainer } from '../lib/dnd'
+import { labelColor } from '../lib/labels'
+import { byTaskOrder } from '../lib/order'
 import { childrenOf } from '../lib/projects'
 import { PROJECT_COLORS, useStore } from '../lib/store'
 import type { Task, View } from '../lib/types'
 import { InlineQuickAdd } from './QuickAdd'
 import { TaskItem } from './TaskItem'
 
-function sortTasks(a: Task, b: Task): number {
-  return (
-    (a.due ?? '9999').localeCompare(b.due ?? '9999') ||
-    (a.time ?? '99').localeCompare(b.time ?? '99') ||
-    a.priority - b.priority ||
-    a.createdAt - b.createdAt
-  )
-}
+// Datoliste (forfalt, senere): dato først, så manuell rekkefølge. Ellers bare manuell rekkefølge.
+const byDueThenOrder = (a: Task, b: Task) => (a.due ?? '9999').localeCompare(b.due ?? '9999') || byTaskOrder(a, b)
 
 function Header({ title, eyebrow, icon, actions }: { title: ReactNode; eyebrow?: string; icon?: ReactNode; actions?: ReactNode }) {
   return (
@@ -55,14 +54,18 @@ function Empty({ text }: { text: string }) {
   )
 }
 
-function List({ tasks, showProject, showDate }: { tasks: Task[]; showProject?: boolean; showDate?: boolean }) {
-  if (tasks.length === 0) return null
+/** Sorterbar oppgaveliste. Hele listen er også et slippområde, så tomme dager og prosjekter kan ta imot oppgaver. */
+function List({ tasks, container, showProject, showDate }: { tasks: Task[]; container?: TaskContainer; showProject?: boolean; showDate?: boolean }) {
+  const key = container ? containerKey(container) : 'none'
+  const { setNodeRef, isOver } = useDroppable({ id: `list:${key}`, data: { type: 'container', container, items: tasks }, disabled: !container })
   return (
-    <ul className="mb-2.5 flex flex-col gap-2">
-      {tasks.map((t) => (
-        <TaskItem key={t.id} task={t} showProject={showProject} showDate={showDate} />
-      ))}
-    </ul>
+    <SortableContext id={key} items={tasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
+      <ul ref={setNodeRef} className={`flex flex-col gap-2 rounded-2xl transition ${tasks.length ? 'mb-2.5' : 'min-h-2'} ${isOver && !tasks.length ? 'min-h-14 bg-accent-soft' : ''}`}>
+        {tasks.map((t) => (
+          <TaskItem key={t.id} task={t} container={container} items={tasks} showProject={showProject} showDate={showDate} />
+        ))}
+      </ul>
+    </SortableContext>
   )
 }
 
@@ -89,10 +92,10 @@ function Progress({ done, total }: { done: number; total: number }) {
 export function TasksView({ view, onNavigate }: { view: Exclude<View, { type: 'page' }>; onNavigate: (v: View) => void }) {
   const store = useStore()
   const today = todayISO()
-  const open = store.tasks.filter((t) => !t.done).sort(sortTasks)
+  const open = store.tasks.filter((t) => !t.done).sort(byTaskOrder)
 
   if (view.type === 'today') {
-    const overdue = open.filter((t) => t.due && t.due < today)
+    const overdue = open.filter((t) => t.due && t.due < today).sort(byDueThenOrder)
     const todays = open.filter((t) => t.due === today)
     const doneToday = store.tasks.filter((t) => t.done && t.completedAt && new Date(t.completedAt).toDateString() === new Date().toDateString()).length
     return (
@@ -107,11 +110,11 @@ export function TasksView({ view, onNavigate }: { view: Exclude<View, { type: 'p
               </button>
             }
           >
-            <List tasks={overdue} />
+            <List tasks={overdue} container={{ kind: 'static', id: 'overdue' }} />
           </Section>
         )}
         <Section title={overdue.length > 0 ? 'I dag' : null}>
-          <List tasks={todays} showDate={false} />
+          <List tasks={todays} container={{ kind: 'due', date: today }} showDate={false} />
           <InlineQuickAdd defaults={{ due: today }} />
         </Section>
         {overdue.length + todays.length === 0 && <Empty text="Alt er gjort for i dag" />}
@@ -121,7 +124,7 @@ export function TasksView({ view, onNavigate }: { view: Exclude<View, { type: 'p
 
   if (view.type === 'upcoming') {
     const days = Array.from({ length: 14 }, (_, i) => addDays(today, i + 1))
-    const later = open.filter((t) => t.due && t.due > days[days.length - 1])
+    const later = open.filter((t) => t.due && t.due > days[days.length - 1]).sort(byDueThenOrder)
     return (
       <>
         <Header title="Kommende" eyebrow="De neste to ukene" />
@@ -130,14 +133,14 @@ export function TasksView({ view, onNavigate }: { view: Exclude<View, { type: 'p
           if (tasks.length === 0 && i > 6) return null
           return (
             <Section key={d} title={<><span className="text-fg">{formatDue(d)}</span> <span className="font-normal">· {formatLong(d)}</span></>}>
-              <List tasks={tasks} showDate={false} />
+              <List tasks={tasks} container={{ kind: 'due', date: d }} showDate={false} />
               <InlineQuickAdd defaults={{ due: d }} />
             </Section>
           )
         })}
         {later.length > 0 && (
           <Section title="Senere">
-            <List tasks={later} />
+            <List tasks={later} container={{ kind: 'static', id: 'later' }} />
           </Section>
         )}
       </>
@@ -149,9 +152,25 @@ export function TasksView({ view, onNavigate }: { view: Exclude<View, { type: 'p
     return (
       <>
         <Header title="Innboks" eyebrow={`${tasks.length} ${tasks.length === 1 ? 'oppgave' : 'oppgaver'}`} />
-        <List tasks={tasks} showProject={false} />
+        <List tasks={tasks} container={{ kind: 'inbox' }} showProject={false} />
         <InlineQuickAdd />
         {tasks.length === 0 && <Empty text="Innboksen er tom" />}
+      </>
+    )
+  }
+
+  if (view.type === 'label') {
+    const tasks = open.filter((t) => t.labels?.includes(view.name))
+    const color = labelColor(view.name)
+    return (
+      <>
+        <Header
+          title={view.name}
+          eyebrow={`Etikett · ${tasks.length} ${tasks.length === 1 ? 'oppgave' : 'oppgaver'}`}
+          icon={<span className="grid size-9 shrink-0 place-items-center rounded-xl" style={{ color, background: `color-mix(in srgb, ${color} 14%, transparent)` }}><AtSign size={20} /></span>}
+        />
+        <List tasks={tasks} container={{ kind: 'static', id: `label:${view.name}` }} />
+        {tasks.length === 0 && <Empty text="Ingen åpne oppgaver med denne etiketten" />}
       </>
     )
   }
@@ -171,7 +190,7 @@ function ProjectView({ id, onNavigate }: { id: string; onNavigate: (v: View) => 
   const parent = project.parentId ? projects.find((p) => p.id === project.parentId) : undefined
   const subs = childrenOf(projects, id)
   const mine = tasks.filter((t) => t.projectId === id)
-  const open = mine.filter((t) => !t.done).sort(sortTasks)
+  const open = mine.filter((t) => !t.done).sort(byTaskOrder)
   const done = mine.filter((t) => t.done).sort((a, b) => (b.completedAt ?? 0) - (a.completedAt ?? 0))
 
   const createSub = () => {
@@ -256,13 +275,13 @@ function ProjectView({ id, onNavigate }: { id: string; onNavigate: (v: View) => 
         }
       />
 
-      <List tasks={open} showProject={false} />
+      <List tasks={open} container={{ kind: 'project', id }} showProject={false} />
       <InlineQuickAdd defaults={{ projectId: id }} />
       {open.length === 0 && subs.length === 0 && done.length === 0 && <Empty text="Ingen oppgaver ennå" />}
 
       {/* Underprosjekter vises som egne seksjoner */}
       {subs.map((s) => {
-        const subOpen = tasks.filter((t) => t.projectId === s.id && !t.done).sort(sortTasks)
+        const subOpen = tasks.filter((t) => t.projectId === s.id && !t.done).sort(byTaskOrder)
         return (
           <section key={s.id} className="mt-9">
             <button onClick={() => onNavigate({ type: 'project', id: s.id })} className="group mb-2.5 flex items-center gap-2.5 px-1">
@@ -271,7 +290,7 @@ function ProjectView({ id, onNavigate }: { id: string; onNavigate: (v: View) => 
               <span className="text-xs text-faint">{subOpen.length}</span>
               <ChevronRight size={15} className="text-faint transition group-hover:translate-x-0.5 group-hover:text-accent" />
             </button>
-            <List tasks={subOpen} showProject={false} />
+            <List tasks={subOpen} container={{ kind: 'project', id: s.id }} showProject={false} />
             <InlineQuickAdd defaults={{ projectId: s.id }} />
           </section>
         )

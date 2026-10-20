@@ -1,7 +1,8 @@
-import { Calendar, Clock, Flag, FolderOpen, Inbox, Plus, Repeat, Trash2, X } from 'lucide-react'
+import { AtSign, Calendar, Clock, Flag, FolderOpen, Inbox, Plus, Repeat, Trash2, X } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { formatDue, MONTHS, todayISO } from '../lib/date'
 import { uid } from '../lib/id'
+import { allLabels, labelColor, normalizeLabel } from '../lib/labels'
 import { projectTree } from '../lib/projects'
 import { RECURRENCE_LABEL } from '../lib/recurrence'
 import { useStore } from '../lib/store'
@@ -157,6 +158,9 @@ function Panel({ task, projects, onClose, update, remove }: PanelProps) {
                 </button>
               ))}
             </Row>
+            <Row icon={<AtSign size={16} />} label="Etiketter">
+              <LabelEditor labels={task.labels ?? []} onChange={(labels) => update({ labels: labels.length ? labels : undefined })} />
+            </Row>
             <Row icon={<FolderOpen size={16} />} label="Prosjekt">
               <select
                 value={task.projectId ?? ''}
@@ -233,6 +237,66 @@ function Panel({ task, projects, onClose, update, remove }: PanelProps) {
           </p>
         </div>
       </aside>
+    </div>
+  )
+}
+
+function LabelEditor({ labels, onChange }: { labels: string[]; onChange: (labels: string[]) => void }) {
+  const { tasks } = useStore()
+  const [text, setText] = useState('')
+  const [focused, setFocused] = useState(false)
+  const query = normalizeLabel(text)
+  const suggestions = allLabels(tasks)
+    .map((l) => l.name)
+    .filter((n) => !labels.includes(n) && n.includes(query))
+    .slice(0, 6)
+
+  const add = (name: string) => {
+    const n = normalizeLabel(name)
+    if (n && !labels.includes(n)) onChange([...labels, n])
+    setText('')
+  }
+
+  return (
+    <div className="relative flex flex-wrap items-center justify-end gap-1.5 py-1">
+      {labels.map((l) => (
+        <span key={l} className="inline-flex items-center gap-1 rounded-full py-0.5 pr-1 pl-2 text-xs font-medium" style={{ color: labelColor(l), background: `color-mix(in srgb, ${labelColor(l)} 12%, transparent)` }}>
+          @{l}
+          <button onClick={() => onChange(labels.filter((x) => x !== l))} aria-label={`Fjern ${l}`} className="grid size-4 place-items-center rounded-full hover:bg-black/10">
+            <X size={11} />
+          </button>
+        </span>
+      ))}
+      <input
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setTimeout(() => setFocused(false), 150)}
+        onKeyDown={(e) => {
+          if ((e.key === 'Enter' || e.key === ',') && text.trim()) {
+            e.preventDefault()
+            add(text)
+          }
+          if (e.key === 'Backspace' && !text && labels.length) onChange(labels.slice(0, -1))
+        }}
+        placeholder={labels.length ? '' : 'Legg til …'}
+        aria-label="Ny etikett"
+        className="w-24 bg-transparent px-1 py-1 text-right text-sm outline-none placeholder:text-faint"
+      />
+      {focused && (suggestions.length > 0 || query) && (
+        <div className="glass-strong animate-rise absolute top-full right-0 z-10 mt-1 w-52 rounded-2xl p-1.5">
+          {suggestions.map((n) => (
+            <button key={n} onMouseDown={(e) => { e.preventDefault(); add(n) }} className="flex w-full items-center gap-2 rounded-xl px-3 py-1.5 text-left text-sm hover:bg-hover">
+              <AtSign size={13} style={{ color: labelColor(n) }} /> {n}
+            </button>
+          ))}
+          {query && !suggestions.includes(query) && !labels.includes(query) && (
+            <button onMouseDown={(e) => { e.preventDefault(); add(query) }} className="flex w-full items-center gap-2 rounded-xl px-3 py-1.5 text-left text-sm text-accent hover:bg-hover">
+              <Plus size={13} /> Ny etikett «{query}»
+            </button>
+          )}
+        </div>
+      )}
     </div>
   )
 }

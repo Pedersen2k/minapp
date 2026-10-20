@@ -19,6 +19,8 @@ export interface Task {
   notes?: string
   recurrence?: Recurrence
   subtasks?: Subtask[]
+  labels?: string[]
+  position?: number // manuell rekkefølge; mangler den, brukes createdAt
   createdAt: number
   completedAt?: number
 }
@@ -28,6 +30,7 @@ export interface Project {
   name: string
   color: string
   parentId?: string
+  position?: number
 }
 
 export type BlockType = 'p' | 'h1' | 'h2' | 'todo' | 'bullet' | 'quote'
@@ -44,6 +47,7 @@ export interface Page {
   title: string
   icon: string
   blocks: Block[]
+  position?: number
   updatedAt: number
 }
 
@@ -58,4 +62,5 @@ export type View =
   | { type: 'today' }
   | { type: 'upcoming' }
   | { type: 'project'; id: string }
+  | { type: 'label'; name: string }
   | { type: 'page'; id: string }

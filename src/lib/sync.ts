@@ -37,7 +37,7 @@ function toRow(table: Table, item: Item): Row {
   const now = new Date().toISOString()
   if (table === 'projects') {
     const p = item as Project
-    return { id: p.id, name: p.name, color: p.color, parent_id: p.parentId ?? null, updated_at: now }
+    return { id: p.id, name: p.name, color: p.color, parent_id: p.parentId ?? null, position: p.position ?? null, updated_at: now }
   }
   if (table === 'tasks') {
     const t = item as Task
@@ -52,19 +52,22 @@ function toRow(table: Table, item: Item): Row {
       notes: t.notes ?? null,
       recurrence: t.recurrence ?? null,
       subtasks: t.subtasks ?? [],
+      labels: t.labels ?? [],
+      position: t.position ?? null,
       created_at: iso(t.createdAt),
       completed_at: t.completedAt ? iso(t.completedAt) : null,
       updated_at: now,
     }
   }
   const p = item as Page
-  return { id: p.id, title: p.title, icon: p.icon, blocks: p.blocks, updated_at: iso(p.updatedAt) }
+  return { id: p.id, title: p.title, icon: p.icon, blocks: p.blocks, position: p.position ?? null, updated_at: iso(p.updatedAt) }
 }
 
 function fromRow(table: Table, r: Row): Item {
   if (table === 'projects') {
     const p = { id: r.id, name: r.name, color: r.color } as Project
     if (r.parent_id) p.parentId = r.parent_id as string
+    if (r.position != null) p.position = r.position as number
     return p
   }
   if (table === 'tasks') {
@@ -82,9 +85,13 @@ function fromRow(table: Table, r: Row): Item {
     if (r.notes) t.notes = r.notes as string
     if (r.recurrence) t.recurrence = r.recurrence as Task['recurrence']
     if (Array.isArray(r.subtasks) && r.subtasks.length > 0) t.subtasks = r.subtasks as Task['subtasks']
+    if (Array.isArray(r.labels) && r.labels.length > 0) t.labels = r.labels as string[]
+    if (r.position != null) t.position = r.position as number
     return t
   }
-  return { id: r.id, title: r.title, icon: r.icon, blocks: r.blocks, updatedAt: ms(r.updated_at) } as Page
+  const page = { id: r.id, title: r.title, icon: r.icon, blocks: r.blocks, updatedAt: ms(r.updated_at) } as Page
+  if (r.position != null) page.position = r.position as number
+  return page
 }
 
 // Sammenligner uavhengig av nøkkelrekkefølge, og behandler tomme felt (undefined, '', []) som like.

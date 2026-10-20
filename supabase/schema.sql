@@ -7,6 +7,7 @@ create table if not exists public.projects (
   name text not null,
   color text not null,
   parent_id uuid references public.projects on delete cascade,
+  position double precision,
   updated_at timestamptz not null default now()
 );
 
@@ -22,6 +23,8 @@ create table if not exists public.tasks (
   notes text,
   recurrence text check (recurrence in ('daily', 'weekdays', 'weekly', 'biweekly', 'monthly', 'yearly')),
   subtasks jsonb not null default '[]',
+  labels text[] not null default '{}',
+  position double precision,
   created_at timestamptz not null default now(),
   completed_at timestamptz,
   updated_at timestamptz not null default now()
@@ -33,6 +36,7 @@ create table if not exists public.pages (
   title text not null default '',
   icon text not null default '📄',
   blocks jsonb not null default '[]',
+  position double precision,
   updated_at timestamptz not null default now()
 );
 

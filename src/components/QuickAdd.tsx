@@ -1,6 +1,7 @@
-import { Calendar, Clock, Flag, Plus, Repeat } from 'lucide-react'
+import { AtSign, Calendar, Clock, Flag, Plus, Repeat } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { formatDue } from '../lib/date'
+import { labelColor } from '../lib/labels'
 import { parseQuickAdd } from '../lib/parse'
 import { findProjectByTag } from '../lib/projects'
 import { RECURRENCE_LABEL } from '../lib/recurrence'
@@ -49,6 +50,7 @@ export function QuickAdd({ defaults, autoFocus, onCancel, onAdded }: Props) {
       priority: parsed.priority ?? 4,
       projectId,
       recurrence: parsed.recurrence,
+      labels: parsed.labels,
     })
     setText('')
     setNotes('')
@@ -56,7 +58,7 @@ export function QuickAdd({ defaults, autoFocus, onCancel, onAdded }: Props) {
     onAdded?.()
   }
 
-  const hasMeta = due || parsed.time || parsed.project || matchedProject || parsed.priority || parsed.recurrence
+  const hasMeta = due || parsed.time || parsed.project || matchedProject || parsed.priority || parsed.recurrence || parsed.labels
 
   return (
     <div className="glass-strong animate-rise rounded-[22px] p-4">
@@ -106,6 +108,11 @@ export function QuickAdd({ defaults, autoFocus, onCancel, onAdded }: Props) {
                 {matchedProject ? matchedProject.name : `Nytt prosjekt: ${parsed.project}`}
               </Chip>
             )}
+            {parsed.labels?.map((l) => (
+              <Chip key={l} color={labelColor(l)}>
+                <AtSign size={12} /> {l}
+              </Chip>
+            ))}
             {parsed.priority && parsed.priority < 4 && (
               <Chip color={PRIORITY_COLOR[parsed.priority]}>
                 <Flag size={12} /> P{parsed.priority}
@@ -113,7 +120,7 @@ export function QuickAdd({ defaults, autoFocus, onCancel, onAdded }: Props) {
             )}
           </>
         ) : (
-          <span className="text-xs text-faint">Prøv: i morgen · fredag · kl 14 · hver mandag · #prosjekt · p1</span>
+          <span className="text-xs text-faint">Prøv: i morgen · kl 14 · hver mandag · #prosjekt · @etikett · p1</span>
         )}
       </div>
       <div className="mt-3 flex justify-end gap-2 border-t border-line pt-3">

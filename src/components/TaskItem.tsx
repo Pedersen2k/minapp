@@ -1,6 +1,10 @@
+import { useSortable } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { Calendar, Check, Clock, ListChecks, Repeat, Trash2 } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { formatDue, todayISO } from '../lib/date'
+import type { TaskContainer } from '../lib/dnd'
+import { labelColor } from '../lib/labels'
 import { useStore } from '../lib/store'
 import type { Task } from '../lib/types'
 import { useOpenTask } from '../lib/ui-context'
@@ -10,6 +14,8 @@ interface Props {
   task: Task
   showProject?: boolean
   showDate?: boolean
+  container?: TaskContainer
+  items?: Task[]
 }
 
 export function TaskCheckbox({ task, checked, onClick, size = 20 }: { task: Task; checked: boolean; onClick: () => void; size?: number }) {
@@ -52,7 +58,12 @@ export function useCompleteTask(task: Task) {
   return { checked: task.done || completing, completing, complete }
 }
 
-export function TaskItem({ task, showProject = true, showDate = true }: Props) {
+export function TaskItem({ task, showProject = true, showDate = true, container, items }: Props) {
+  const sortable = useSortable({
+    id: task.id,
+    data: { type: 'task', task, container, items },
+    disabled: !container,
+  })
   const { projects, updateTask, deleteTask } = useStore()
   const openTask = useOpenTask()
   const { checked, completing, complete } = useCompleteTask(task)
@@ -76,11 +87,19 @@ export function TaskItem({ task, showProject = true, showDate = true }: Props) {
 
   return (
     <li
+      ref={sortable.setNodeRef}
+      {...sortable.attributes}
+      {...sortable.listeners}
       onClick={() => openTask(task.id)}
-      className={`group flex cursor-pointer items-start gap-3 rounded-2xl border border-glass-border px-4 py-3 transition-all duration-300 hover:bg-card-hover ${
+      className={`group flex cursor-pointer touch-manipulation items-start gap-3 rounded-2xl select-none [-webkit-touch-callout:none] border border-glass-border px-4 py-3 transition-all duration-300 hover:bg-card-hover ${
         completing && !task.done ? 'scale-[0.98] opacity-40' : ''
       } ${overdue ? '' : 'bg-card'}`}
-      style={overdue ? { background: 'color-mix(in srgb, #e5484d 9%, var(--card))' } : undefined}
+      style={{
+        transform: CSS.Translate.toString(sortable.transform),
+        transition: sortable.transition,
+        opacity: sortable.isDragging ? 0.35 : undefined,
+        ...(overdue ? { background: 'color-mix(in srgb, #e5484d 9%, var(--card))' } : {}),
+      }}
     >
       <TaskCheckbox task={task} checked={checked} onClick={complete} />
 
@@ -110,6 +129,11 @@ export function TaskItem({ task, showProject = true, showDate = true }: Props) {
               <ListChecks size={12} /> {subDone}/{subtasks.length}
             </span>
           )}
+          {task.labels?.map((l) => (
+            <span key={l} className="font-medium" style={{ color: labelColor(l) }}>
+              @{l}
+            </span>
+          ))}
           {showProject && project && (
             <span className="inline-flex items-center gap-1.5 text-muted">
               <Dot color={project.color} /> {project.name}
