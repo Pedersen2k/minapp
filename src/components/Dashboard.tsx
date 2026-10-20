@@ -40,6 +40,17 @@ interface Feed {
 }
 
 const FEED_CACHE = 'minapp:feed'
+const FEED_AT = 'minapp:feed-at'
+const WEATHER_CACHE = 'minapp:weather'
+const STALE_MS = 60 * 60 * 1000 // oppdater automatisk én gang i timen
+
+function cachedWeather(): { at: number; data: Weather } | null {
+  try {
+    return JSON.parse(localStorage.getItem(WEATHER_CACHE) ?? 'null')
+  } catch {
+    return null
+  }
+}
 const PENDING_KEY = 'minapp:pending-gmail-key'
 
 function greeting(): string {
@@ -94,6 +105,8 @@ export function Dashboard() {
   const [setup, setSetup] = useState(false)
   const connected = !!(settings.gmailScriptUrl && settings.gmailKey)
 
+  const [fetchedAt, setFetchedAt] = useState(() => Number(localStorage.getItem(FEED_AT) ?? 0))
+
   const loadFeed = useCallback(async () => {
     if (!settings.gmailScriptUrl || !settings.gmailKey) return
     setLoading(true)
@@ -101,7 +114,12 @@ export function Dashboard() {
       const res = await fetch(`${settings.gmailScriptUrl}?key=${encodeURIComponent(settings.gmailKey)}`)
       const data = (await res.json()) as Feed
       setFeed(data)
-      if (!data.error) localStorage.setItem(FEED_CACHE, JSON.stringify(data))
+      if (!data.error) {
+        const now = Date.now()
+        localStorage.setItem(FEED_CACHE, JSON.stringify(data))
+        localStorage.setItem(FEED_AT, String(now))
+        setFetchedAt(now)
+      }
     } catch {
       setFeed((f) => ({ ...f, error: navigator.onLine ? 'Kunne ikke nå Gmail-skriptet. Sjekk adressen i oppsettet.' : 'Du er ikke på nett.' }))
     } finally {
@@ -109,19 +127,35 @@ export function Dashboard() {
     }
   }, [settings.gmailScriptUrl, settings.gmailKey])
 
-  useEffect(() => {
-    // Henter når dashboardet åpnes (og når tilkoblingen endres).
-    loadFeed()
-  }, [loadFeed])
-
   const place = settings.weather ?? DEFAULT_WEATHER
-  const [weather, setWeather] = useState<Weather | null>(null)
+  const [weather, setWeather] = useState<Weather | null>(() => cachedWeather()?.data ?? null)
   const [weatherError, setWeatherError] = useState(false)
-  useEffect(() => {
+  const loadWeather = useCallback(() => {
     fetchWeather(place.lat, place.lon)
-      .then(setWeather)
+      .then((data) => {
+        setWeather(data)
+        setWeatherError(false)
+        localStorage.setItem(WEATHER_CACHE, JSON.stringify({ at: Date.now(), data }))
+      })
       .catch(() => setWeatherError(true))
   }, [place.lat, place.lon])
+
+  // Automatisk oppdatering: når siden åpnes, når appen kommer tilbake i forgrunnen, og
+  // ellers jevnlig – men bare når det som vises er eldre enn en time.
+  useEffect(() => {
+    const refreshIfStale = () => {
+      if (document.visibilityState !== 'visible') return
+      if (Date.now() - Number(localStorage.getItem(FEED_AT) ?? 0) > STALE_MS) loadFeed()
+      if (Date.now() - (cachedWeather()?.at ?? 0) > STALE_MS) loadWeather()
+    }
+    refreshIfStale()
+    const timer = window.setInterval(refreshIfStale, 60_000)
+    document.addEventListener('visibilitychange', refreshIfStale)
+    return () => {
+      window.clearInterval(timer)
+      document.removeEventListener('visibilitychange', refreshIfStale)
+    }
+  }, [loadFeed, loadWeather])
 
   const plan = [...overdue, ...todays]
   const sectionTitle = 'mb-3 flex h-7 items-center justify-between px-1 text-xs font-semibold tracking-wide text-muted uppercase'
@@ -200,7 +234,7 @@ export function Dashboard() {
                     {feed.unread} i Gmail →
                   </a>
                 ) : null}
-                <button onClick={loadFeed} disabled={loading} aria-label="Oppdater" className="grid size-7 place-items-center rounded-lg hover:bg-hover hover:text-fg">
+                <button onClick={() => { loadFeed(); loadWeather() }} disabled={loading} aria-label="Oppdater" className="grid size-7 place-items-center rounded-lg hover:bg-hover hover:text-fg">
                   <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
                 </button>
                 <button onClick={() => setSetup(true)} aria-label="Gmail-oppsett" className="grid size-7 place-items-center rounded-lg hover:bg-hover hover:text-fg">
@@ -282,6 +316,12 @@ export function Dashboard() {
           </div>
         </section>
       </div>
+
+      {connected && fetchedAt > 0 && (
+        <p className="-mt-2 text-center text-xs text-faint">
+          Oppdatert kl {new Date(fetchedAt).toTimeString().slice(0, 5)} · oppdateres automatisk hver time
+        </p>
+      )}
 
       {setup && <GmailSetup settings={settings} onSave={save} onClose={() => setSetup(false)} />}
     </div>
@@ -456,6 +496,7 @@ function GmailSetup({ settings, onSave, onClose }: { settings: Settings; onSave:
               try {
                 await onSave({ gmailScriptUrl: url.trim(), gmailKey: key })
                 localStorage.removeItem(PENDING_KEY)
+                localStorage.removeItem(FEED_AT) // hent med en gang med den nye tilkoblingen
                 onClose()
               } catch (e) {
                 setError(e instanceof Error ? e.message : 'Kunne ikke lagre')
