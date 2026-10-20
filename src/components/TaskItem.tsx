@@ -1,10 +1,11 @@
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { Calendar, Check, Clock, ListChecks, Repeat, Trash2 } from 'lucide-react'
+import { Bell, Calendar, Check, Clock, ListChecks, Repeat, Trash2 } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { formatDue, todayISO } from '../lib/date'
 import type { TaskContainer } from '../lib/dnd'
 import { labelColor } from '../lib/labels'
+import { reminderMinutes } from '../lib/reminders'
 import { useStore } from '../lib/store'
 import type { Task } from '../lib/types'
 import { useOpenTask } from '../lib/ui-context'
@@ -122,6 +123,7 @@ export function TaskItem({ task, showProject = true, showDate = true, container,
           {task.time && (
             <span className="inline-flex items-center gap-1 text-muted">
               <Clock size={12} /> {task.time}
+              {reminderMinutes(task) !== null && <Bell size={11} className="ml-0.5" aria-label="Påminnelse" />}
             </span>
           )}
           {subtasks.length > 0 && (

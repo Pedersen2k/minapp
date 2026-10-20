@@ -1,5 +1,6 @@
 import type { PostgrestError, Session } from '@supabase/supabase-js'
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react'
+import { remindAt } from './reminders'
 import { supabase } from './supabase'
 import type { AppData, Page, Project, Task } from './types'
 
@@ -29,6 +30,7 @@ export type SyncStatus = 'local' | 'syncing' | 'synced' | 'offline'
 const TABLES: Table[] = ['projects', 'tasks', 'pages']
 const QUEUE_KEY = 'minapp:queue'
 const OWNER_KEY = 'minapp:owner'
+const REMIND_BACKFILL_KEY = 'minapp:remind-backfill'
 
 const iso = (ms: number) => new Date(ms).toISOString()
 const ms = (s: unknown) => new Date(s as string).getTime()
@@ -63,6 +65,8 @@ function toRow(table: Table, item: Item): Row {
       subtasks: t.subtasks ?? [],
       labels: t.labels ?? [],
       column_id: t.columnId ?? null,
+      reminder: t.reminder ?? null,
+      remind_at: remindAt(t),
       position: t.position ?? null,
       created_at: iso(t.createdAt),
       completed_at: t.completedAt ? iso(t.completedAt) : null,
@@ -99,6 +103,7 @@ function fromRow(table: Table, r: Row): Item {
     if (Array.isArray(r.subtasks) && r.subtasks.length > 0) t.subtasks = r.subtasks as Task['subtasks']
     if (Array.isArray(r.labels) && r.labels.length > 0) t.labels = r.labels as string[]
     if (r.column_id) t.columnId = r.column_id as string
+    if (r.reminder != null) t.reminder = r.reminder as number
     if (r.position != null) t.position = r.position as number
     return t
   }
@@ -290,6 +295,12 @@ export function useSync(data: AppData, setData: Dispatch<SetStateAction<AppData>
       }
       return changed ? next : d
     })
+    // Engangs: gi eksisterende oppgaver med klokkeslett et varslingstidspunkt i databasen.
+    if (!localStorage.getItem(REMIND_BACKFILL_KEY)) {
+      localStorage.setItem(REMIND_BACKFILL_KEY, '1')
+      const timed = prev.current.tasks.filter((t) => remindAt(t))
+      if (timed.length) enqueue(timed.map((t) => ({ table: 'tasks' as const, kind: 'upsert' as const, id: t.id, row: toRow('tasks', t) })))
+    }
     if (queue.current.length === 0) setStatus('synced')
   }, [userId, enqueue, setData])
 

@@ -1,10 +1,11 @@
-import { AtSign, Calendar, Clock, Flag, FolderOpen, Inbox, Plus, Repeat, Trash2, X } from 'lucide-react'
+import { AtSign, Bell, Calendar, Clock, Flag, FolderOpen, Inbox, Plus, Repeat, Trash2, X } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { formatDue, MONTHS, todayISO } from '../lib/date'
 import { uid } from '../lib/id'
 import { allLabels, labelColor, normalizeLabel } from '../lib/labels'
 import { projectTree } from '../lib/projects'
 import { RECURRENCE_LABEL } from '../lib/recurrence'
+import { REMINDER_OPTIONS } from '../lib/reminders'
 import { useStore } from '../lib/store'
 import type { Priority, Recurrence, Subtask, Task } from '../lib/types'
 import { AutoTextarea } from './AutoTextarea'
@@ -129,6 +130,20 @@ function Panel({ task, projects, onClose, update, remove }: PanelProps) {
               <input type="time" value={task.time ?? ''} onChange={(e) => update({ time: e.target.value || undefined })} className={control} aria-label="Klokkeslett" />
               {task.time && <ClearButton onClick={() => update({ time: undefined })} />}
             </Row>
+            {task.time && (
+              <Row icon={<Bell size={16} />} label="Påminnelse">
+                <select
+                  value={task.reminder ?? 0}
+                  onChange={(e) => update({ reminder: Number(e.target.value) === 0 ? undefined : Number(e.target.value) })}
+                  className={`${control} cursor-pointer text-right`}
+                  aria-label="Påminnelse"
+                >
+                  {REMINDER_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
+              </Row>
+            )}
             <Row icon={<Repeat size={16} />} label="Gjentakelse">
               <select
                 value={task.recurrence ?? ''}

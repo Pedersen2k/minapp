@@ -27,6 +27,9 @@ create table if not exists public.tasks (
   subtasks jsonb not null default '[]',
   labels text[] not null default '{}',
   column_id text,
+  reminder integer,
+  remind_at timestamptz,
+  reminded_at timestamptz,
   position double precision,
   created_at timestamptz not null default now(),
   completed_at timestamptz,
@@ -67,3 +70,18 @@ create policy "Egne sider" on public.pages for all to authenticated
 
 -- Sanntid: endringer på én enhet dukker opp på de andre med en gang.
 alter publication supabase_realtime add table public.projects, public.tasks, public.pages;
+
+-- Varsler (web push): ett abonnement per enhet.
+create table if not exists public.push_subscriptions (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users on delete cascade,
+  endpoint text not null unique,
+  p256dh text not null,
+  auth text not null,
+  created_at timestamptz not null default now()
+);
+alter table public.push_subscriptions enable row level security;
+drop policy if exists "Egne varslingsabonnement" on public.push_subscriptions;
+create policy "Egne varslingsabonnement" on public.push_subscriptions for all to authenticated
+  using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
+create index if not exists tasks_remind_idx on public.tasks (remind_at) where done = false;

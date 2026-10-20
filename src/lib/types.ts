@@ -21,6 +21,7 @@ export interface Task {
   subtasks?: Subtask[]
   labels?: string[]
   columnId?: string // kolonne på kanban-tavlen
+  reminder?: number // minutter før klokkeslettet; mangler = ved tidspunktet, -1 = av
   position?: number // manuell rekkefølge; mangler den, brukes createdAt
   createdAt: number
   completedAt?: number

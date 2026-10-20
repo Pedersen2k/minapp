@@ -1,10 +1,11 @@
 import { useDroppable } from '@dnd-kit/core'
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { AtSign, CalendarDays, CalendarRange, Cloud, CloudOff, FilePlus, HardDrive, Inbox, LogOut, Monitor, Moon, Plus, RefreshCw, Search, Sun } from 'lucide-react'
-import { useState, type ReactNode } from 'react'
+import { AtSign, Bell, BellOff, BellRing, CalendarDays, CalendarRange, Cloud, CloudOff, FilePlus, HardDrive, Inbox, LogOut, Monitor, Moon, Plus, RefreshCw, Search, Sun } from 'lucide-react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { todayISO } from '../lib/date'
 import { allLabels, labelColor } from '../lib/labels'
+import { disablePush, enablePush, pushState, sendTestPush, type PushState } from '../lib/push'
 import { sortByPosition } from '../lib/order'
 import { childrenOf, topLevel } from '../lib/projects'
 import { useStore } from '../lib/store'
@@ -204,6 +205,7 @@ export function Sidebar({ view, onNavigate, onSearch, theme, onTheme }: Props) {
         <button onClick={() => onTheme(nextTheme[theme])} className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-sm text-muted hover:bg-hover">
           {themeIcon[theme]} Tema: {themeLabel[theme]}
         </button>
+        <PushRow />
         <SyncRow />
       </div>
     </nav>
@@ -229,6 +231,77 @@ function SyncRow() {
           <LogOut size={15} />
         </button>
       )}
+    </div>
+  )
+}
+
+const PUSH_TEXT: Record<PushState, string> = {
+  unsupported: 'Varsler støttes ikke her',
+  'needs-install': 'Legg appen på hjemskjermen for varsler',
+  denied: 'Varsler er blokkert i innstillingene',
+  off: 'Slå på varsler',
+  on: 'Varsler er på',
+}
+
+function PushRow() {
+  const { sync } = useStore()
+  const [state, setState] = useState<PushState | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [message, setMessage] = useState<string | null>(null)
+
+  useEffect(() => {
+    pushState().then(setState).catch(() => setState('unsupported'))
+  }, [])
+
+  if (!sync.enabled || state === null || state === 'unsupported') return null
+
+  const run = async (fn: () => Promise<unknown>) => {
+    setBusy(true)
+    setMessage(null)
+    try {
+      await fn()
+    } catch (e) {
+      setMessage(e instanceof Error ? e.message : 'Noe gikk galt')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const icon = state === 'on' ? <BellRing size={15} className="text-accent" /> : state === 'off' ? <Bell size={15} /> : <BellOff size={15} />
+
+  return (
+    <div className="px-3 py-1">
+      <div className="flex items-center gap-2.5 py-1 text-sm text-muted">
+        {icon}
+        {state === 'off' ? (
+          <button disabled={busy} onClick={() => run(async () => setState(await enablePush()))} className="flex-1 text-left font-medium text-accent hover:underline">
+            {busy ? 'Slår på …' : PUSH_TEXT.off}
+          </button>
+        ) : (
+          <span className="flex-1 truncate">{PUSH_TEXT[state]}</span>
+        )}
+        {state === 'on' && (
+          <>
+            <button
+              disabled={busy}
+              onClick={() => run(async () => setMessage((await sendTestPush()) ? 'Testvarsel sendt' : 'Fant ingen enheter'))}
+              className="rounded-lg px-2 py-1 text-xs font-medium text-accent hover:bg-hover"
+            >
+              Test
+            </button>
+            <button
+              disabled={busy}
+              onClick={() => run(async () => setState(await disablePush()))}
+              aria-label="Slå av varsler"
+              title="Slå av varsler på denne enheten"
+              className="grid size-7 place-items-center rounded-lg hover:bg-hover hover:text-fg"
+            >
+              <BellOff size={14} />
+            </button>
+          </>
+        )}
+      </div>
+      {message && <p className="pb-1 pl-6 text-xs text-muted">{message}</p>}
     </div>
   )
 }
