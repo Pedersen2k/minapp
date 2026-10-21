@@ -13,6 +13,7 @@ export interface QuickAddDefaults {
   projectId?: string
   due?: string
   columnId?: string
+  sectionId?: string
 }
 
 interface Props {
@@ -53,6 +54,8 @@ export function QuickAdd({ defaults, autoFocus, onCancel, onAdded }: Props) {
       recurrence: parsed.recurrence,
       labels: parsed.labels,
       columnId: defaults?.columnId,
+      // Kategorien gjelder bare hvis oppgaven havner i prosjektet den hører til.
+      sectionId: projectId === defaults?.projectId ? defaults?.sectionId : undefined,
     })
     setText('')
     setNotes('')

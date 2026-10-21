@@ -21,6 +21,7 @@ export interface Task {
   subtasks?: Subtask[]
   labels?: string[]
   columnId?: string // kolonne på kanban-tavlen
+  sectionId?: string // kategori inne i prosjektet
   reminder?: number // minutter før klokkeslettet; mangler = ved tidspunktet, -1 = av
   position?: number // manuell rekkefølge; mangler den, brukes createdAt
   createdAt: number
@@ -33,6 +34,13 @@ export interface Column {
   done?: boolean // oppgaver som slippes her, hukes av
 }
 
+/** Kategori (seksjon) inne i et prosjekt. */
+export interface Section {
+  id: string
+  name: string
+  collapsed?: boolean
+}
+
 export interface Project {
   id: string
   name: string
@@ -42,6 +50,7 @@ export interface Project {
   position?: number
   view?: 'list' | 'board'
   columns?: Column[]
+  sections?: Section[]
 }
 
 export type BlockType = 'p' | 'h1' | 'h2' | 'todo' | 'bullet' | 'quote'

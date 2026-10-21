@@ -11,6 +11,7 @@ create table if not exists public.projects (
   position double precision,
   view text,
   columns jsonb not null default '[]',
+  sections jsonb not null default '[]',
   updated_at timestamptz not null default now()
 );
 
@@ -28,6 +29,7 @@ create table if not exists public.tasks (
   subtasks jsonb not null default '[]',
   labels text[] not null default '{}',
   column_id text,
+  section_id text,
   reminder integer,
   remind_at timestamptz,
   reminded_at timestamptz,

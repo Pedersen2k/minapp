@@ -52,6 +52,7 @@ function toRow(table: Table, item: Item): Row {
       position: p.position ?? null,
       view: p.view ?? null,
       columns: p.columns ?? [],
+      sections: p.sections ?? [],
       updated_at: now,
     }
   }
@@ -70,6 +71,7 @@ function toRow(table: Table, item: Item): Row {
       subtasks: t.subtasks ?? [],
       labels: t.labels ?? [],
       column_id: t.columnId ?? null,
+      section_id: t.sectionId ?? null,
       reminder: t.reminder ?? null,
       remind_at: remindAt(t),
       position: t.position ?? null,
@@ -91,6 +93,7 @@ function fromRow(table: Table, r: Row): Item {
     if (r.icon) p.icon = r.icon as string
     if (r.view) p.view = r.view as Project['view']
     if (Array.isArray(r.columns) && r.columns.length > 0) p.columns = r.columns as Project['columns']
+    if (Array.isArray(r.sections) && r.sections.length > 0) p.sections = r.sections as Project['sections']
     return p
   }
   if (table === 'tasks') {
@@ -110,6 +113,7 @@ function fromRow(table: Table, r: Row): Item {
     if (Array.isArray(r.subtasks) && r.subtasks.length > 0) t.subtasks = r.subtasks as Task['subtasks']
     if (Array.isArray(r.labels) && r.labels.length > 0) t.labels = r.labels as string[]
     if (r.column_id) t.columnId = r.column_id as string
+    if (r.section_id) t.sectionId = r.section_id as string
     if (r.reminder != null) t.reminder = r.reminder as number
     if (r.position != null) t.position = r.position as number
     return t

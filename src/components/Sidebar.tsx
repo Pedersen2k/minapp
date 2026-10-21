@@ -1,14 +1,14 @@
 import { useDroppable } from '@dnd-kit/core'
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { AtSign, Bell, LayoutGrid, BellOff, BellRing, CalendarDays, CheckCircle2, Pencil, CalendarRange, Cloud, CloudOff, FilePlus, HardDrive, Inbox, LogOut, Monitor, Moon, Plus, RefreshCw, Search, Sun } from 'lucide-react'
+import { AtSign, Bell, ChevronRight, LayoutGrid, BellOff, BellRing, CalendarDays, CheckCircle2, Pencil, CalendarRange, Cloud, CloudOff, FilePlus, HardDrive, Inbox, LogOut, Monitor, Moon, Plus, RefreshCw, Search, Sun } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
 import { todayISO } from '../lib/date'
 import { isInInbox } from '../lib/inbox'
 import { allLabels, labelColor } from '../lib/labels'
 import { disablePush, enablePush, pushState, sendTestPush, type PushState } from '../lib/push'
 import { sortByPosition } from '../lib/order'
-import { childrenOf, topLevel } from '../lib/projects'
+import { childrenOf, descendantIds, MAX_DEPTH, topLevel } from '../lib/projects'
 import { useEdit } from '../lib/ui-context'
 import { useStore } from '../lib/store'
 import type { Page, Project, View } from '../lib/types'
@@ -33,16 +33,17 @@ interface NavItemProps {
   onClick: () => void
   indent?: boolean
   dropHighlight?: boolean
+  padLeft?: number
   dnd?: { setNodeRef: (el: HTMLElement | null) => void; attributes: object; listeners?: object; style?: React.CSSProperties }
 }
 
-function NavItem({ active, icon, label, count, onClick, indent, dropHighlight, dnd }: NavItemProps) {
+function NavItem({ active, icon, label, count, onClick, indent, dropHighlight, padLeft, dnd }: NavItemProps) {
   return (
     <button
       ref={dnd?.setNodeRef}
       {...dnd?.attributes}
       {...dnd?.listeners}
-      style={dnd?.style}
+      style={{ ...dnd?.style, ...(padLeft !== undefined ? { paddingLeft: padLeft } : {}) }}
       onClick={onClick}
       className={`flex w-full touch-manipulation items-center gap-3 rounded-xl py-2 pr-3 text-left text-[14.5px] transition select-none ${indent ? 'pl-9' : 'pl-3'} ${
         dropHighlight ? 'bg-accent-soft ring-2 ring-accent/40' : active ? 'bg-card-hover font-semibold shadow-[0_4px_16px_-6px_rgb(60_50_140/0.25)]' : 'hover:bg-hover'
@@ -112,13 +113,94 @@ function SectionTitle({ children, onAdd, label }: { children: ReactNode; onAdd: 
   )
 }
 
+interface TreeCtx {
+  projects: Project[]
+  collapsed: Set<string>
+  toggle: (id: string) => void
+  countFor: (p: Project, includeDescendants: boolean) => number
+  is: (v: View) => boolean
+  navigate: (v: View) => void
+  edit: (id: string) => void
+  newFor: string | null
+  startNew: (parentId: string) => void
+  createSub: (parentId: string, name: string) => void
+}
+
+/** Ett nivå i prosjekttreet. Søsken kan sorteres innbyrdes. */
+function ProjectTreeLevel({ parentId, depth, ctx }: { parentId: string | null; depth: number; ctx: TreeCtx }) {
+  const items = sortByPosition(parentId ? childrenOf(ctx.projects, parentId) : topLevel(ctx.projects))
+  return (
+    <SortableContext items={items.map((p) => `nav-project:${p.id}`)} strategy={verticalListSortingStrategy}>
+      {items.map((p) => (
+        <ProjectTreeNode key={p.id} project={p} depth={depth} ctx={ctx} />
+      ))}
+    </SortableContext>
+  )
+}
+
+function ProjectTreeNode({ project, depth, ctx }: { project: Project; depth: number; ctx: TreeCtx }) {
+  const hasKids = ctx.projects.some((p) => p.parentId === project.id)
+  const collapsed = ctx.collapsed.has(project.id)
+  const indent = depth * 16
+  const action = 'grid size-6 place-items-center rounded-md bg-surface text-muted shadow-sm hover:text-accent'
+  return (
+    <div>
+      <div className="group/tree relative">
+        {hasKids && (
+          <button
+            onClick={() => ctx.toggle(project.id)}
+            aria-label={collapsed ? `Vis underprosjekter i ${project.name}` : `Skjul underprosjekter i ${project.name}`}
+            aria-expanded={!collapsed}
+            className="absolute top-1/2 z-10 grid size-5 -translate-y-1/2 place-items-center rounded text-faint hover:bg-hover hover:text-fg"
+            style={{ left: 2 + indent }}
+          >
+            <ChevronRight size={13} className={`transition ${collapsed ? '' : 'rotate-90'}`} />
+          </button>
+        )}
+        <SortableProject
+          project={project}
+          padLeft={22 + indent}
+          active={ctx.is({ type: 'project', id: project.id })}
+          icon={<ProjectIcon project={project} size={depth ? 'sm' : 'md'} />}
+          label={project.name}
+          count={ctx.countFor(project, collapsed)}
+          onClick={() => ctx.navigate({ type: 'project', id: project.id })}
+        />
+        <span className="absolute top-1/2 right-1.5 hidden -translate-y-1/2 gap-1 md:group-hover/tree:flex">
+          {depth + 1 < MAX_DEPTH && (
+            <button onClick={() => ctx.startNew(project.id)} aria-label={`Nytt underprosjekt i ${project.name}`} title="Nytt underprosjekt" className={action}>
+              <Plus size={13} />
+            </button>
+          )}
+          <button onClick={() => ctx.edit(project.id)} aria-label={`Rediger ${project.name}`} title="Rediger" className={action}>
+            <Pencil size={12} />
+          </button>
+        </span>
+      </div>
+      {!collapsed && hasKids && <ProjectTreeLevel parentId={project.id} depth={depth + 1} ctx={ctx} />}
+      {ctx.newFor === project.id && (
+        <input
+          autoFocus
+          placeholder="Navn på underprosjekt"
+          onBlur={(e) => ctx.createSub(project.id, e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') e.currentTarget.blur()
+            if (e.key === 'Escape') ctx.createSub(project.id, '')
+          }}
+          className="my-1 w-[calc(100%-8px)] rounded-xl border border-accent bg-surface px-3 py-1.5 text-sm outline-none"
+          style={{ marginLeft: 22 + indent + 16 }}
+        />
+      )}
+    </div>
+  )
+}
+
 export function Sidebar({ view, onNavigate, onSearch, theme, onTheme }: Props) {
   const { tasks, projects, pages, addProject, addPage } = useStore()
   const [newProject, setNewProject] = useState<string | null>(null)
   const today = todayISO()
   const open = tasks.filter((t) => !t.done)
   const is = (v: View) => JSON.stringify(v) === JSON.stringify(view)
-  const countFor = (p: Project) => open.filter((t) => t.projectId === p.id).length
   // Bare etiketter som brukes på åpne oppgaver. Ubrukte finnes fortsatt i søket.
   const labels = allLabels(tasks).filter((l) => l.count > 0)
   const { editProject, editLabel } = useEdit()
@@ -132,6 +214,53 @@ export function Sidebar({ view, onNavigate, onSearch, theme, onTheme }: Props) {
     const p = addProject(newProject.trim())
     setNewProject(null)
     onNavigate({ type: 'project', id: p.id })
+  }
+
+  // Sammenlagte prosjekter huskes per enhet.
+  const [collapsed, setCollapsed] = useState<Set<string>>(() => {
+    try {
+      return new Set(JSON.parse(localStorage.getItem('minapp:collapsed') ?? '[]') as string[])
+    } catch {
+      return new Set()
+    }
+  })
+  const toggleCollapsed = (id: string, force?: boolean) =>
+    setCollapsed((c) => {
+      const next = new Set(c)
+      if (force === false || (force === undefined && next.has(id))) next.delete(id)
+      else next.add(id)
+      try {
+        localStorage.setItem('minapp:collapsed', JSON.stringify([...next]))
+      } catch {
+        // ignorer
+      }
+      return next
+    })
+  const [newSubFor, setNewSubFor] = useState<string | null>(null)
+
+  const tree: TreeCtx = {
+    projects,
+    collapsed,
+    toggle: (id) => toggleCollapsed(id),
+    countFor: (p, includeDescendants) => {
+      const ids = new Set([p.id, ...(includeDescendants ? descendantIds(projects, p.id) : [])])
+      return open.filter((t) => t.projectId && ids.has(t.projectId)).length
+    },
+    is,
+    navigate: onNavigate,
+    edit: editProject,
+    newFor: newSubFor,
+    startNew: (parentId) => {
+      toggleCollapsed(parentId, false)
+      setNewSubFor(parentId)
+    },
+    createSub: (parentId, name) => {
+      setNewSubFor(null)
+      if (!name.trim()) return
+      const parent = projects.find((p) => p.id === parentId)
+      const p = addProject(name.trim(), { parentId, color: parent?.color })
+      onNavigate({ type: 'project', id: p.id })
+    },
   }
 
   return (
@@ -160,25 +289,7 @@ export function Sidebar({ view, onNavigate, onSearch, theme, onTheme }: Props) {
         <NavItem active={is({ type: 'done' })} icon={<CheckCircle2 size={18} className="text-[#22a06b]" />} label="Fullført" onClick={() => onNavigate({ type: 'done' })} />
 
         <SectionTitle label="Nytt prosjekt" onAdd={() => setNewProject('')}>Prosjekter</SectionTitle>
-        <SortableContext items={sortByPosition(topLevel(projects)).map((p) => `nav-project:${p.id}`)} strategy={verticalListSortingStrategy}>
-          {sortByPosition(topLevel(projects)).map((p) => {
-            const kids = sortByPosition(childrenOf(projects, p.id))
-            return (
-              <div key={p.id}>
-                <WithEdit label={p.name} onEdit={() => editProject(p.id)}>
-                  <SortableProject project={p} active={is({ type: 'project', id: p.id })} icon={<ProjectIcon project={p} />} label={p.name} count={countFor(p)} onClick={() => onNavigate({ type: 'project', id: p.id })} />
-                </WithEdit>
-                <SortableContext items={kids.map((c) => `nav-project:${c.id}`)} strategy={verticalListSortingStrategy}>
-                  {kids.map((c) => (
-                    <WithEdit key={c.id} label={c.name} onEdit={() => editProject(c.id)}>
-                      <SortableProject project={c} indent active={is({ type: 'project', id: c.id })} icon={<ProjectIcon project={c} size="sm" />} label={c.name} count={countFor(c)} onClick={() => onNavigate({ type: 'project', id: c.id })} />
-                    </WithEdit>
-                  ))}
-                </SortableContext>
-              </div>
-            )
-          })}
-        </SortableContext>
+        <ProjectTreeLevel parentId={null} depth={0} ctx={tree} />
         {newProject !== null ? (
           <input
             autoFocus

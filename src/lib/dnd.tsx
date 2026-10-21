@@ -28,6 +28,7 @@ export type TaskContainer =
   | { kind: 'project'; id: string }
   | { kind: 'inbox' }
   | { kind: 'column'; projectId: string; columnId: string; done?: boolean }
+  | { kind: 'section'; projectId: string; sectionId?: string } // sectionId mangler = uten kategori
   | { kind: 'static'; id: string } // bare omsortering, f.eks. «Forfalt» og etikettvisninger
 
 export function containerKey(c: TaskContainer): string {
@@ -40,6 +41,8 @@ export function containerKey(c: TaskContainer): string {
       return 'inbox'
     case 'column':
       return `column:${c.columnId}`
+    case 'section':
+      return `section:${c.projectId}:${c.sectionId ?? 'none'}`
     case 'static':
       return `static:${c.id}`
   }
@@ -54,7 +57,9 @@ export type DragData =
 
 function patchFor(c: TaskContainer): Partial<Task> {
   if (c.kind === 'due') return { due: c.date }
-  if (c.kind === 'project') return { projectId: c.id }
+  // Nytt prosjekt: kategori og tavlekolonne hører til det gamle prosjektet.
+  if (c.kind === 'project') return { projectId: c.id, sectionId: undefined, columnId: undefined }
+  if (c.kind === 'section') return { projectId: c.projectId, sectionId: c.sectionId }
   if (c.kind === 'inbox') return INBOX_PATCH
   if (c.kind === 'column') {
     // Ferdig-kolonnen huker av; ut av den gjør oppgaven åpen igjen.
@@ -93,7 +98,7 @@ export function DragProvider({ children }: { children: ReactNode }) {
 
     if (from.type === 'task') {
       const task = from.task
-      if (to.type === 'project') return updateTask(task.id, { projectId: to.project.id })
+      if (to.type === 'project') return updateTask(task.id, { projectId: to.project.id, sectionId: undefined, columnId: undefined })
       if (to.type === 'nav') return updateTask(task.id, to.target === 'inbox' ? INBOX_PATCH : { due: todayISO() })
       if (to.type !== 'task' && to.type !== 'container') return
       // Gjentakende oppgave til «Ferdig»: flytt den til neste gang i stedet for å avslutte den.

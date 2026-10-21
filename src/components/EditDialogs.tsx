@@ -1,7 +1,7 @@
 import { AtSign, Check, Trash2, X } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
 import { LABEL_COLORS, labelColor, normalizeLabel } from '../lib/labels'
-import { descendantIds, topLevel } from '../lib/projects'
+import { possibleParents, projectTree } from '../lib/projects'
 import { PROJECT_COLORS, useStore } from '../lib/store'
 import type { View } from '../lib/types'
 
@@ -62,7 +62,8 @@ export function ProjectDialog({ projectId, onClose, onNavigate }: { projectId: s
 
   const hasChildren = projects.some((p) => p.parentId === project.id)
   // Kan legges under et annet hovedprosjekt (ett nivå), men ikke under seg selv eller egne underprosjekter.
-  const parents = topLevel(projects).filter((p) => p.id !== project.id && !descendantIds(projects, project.id).includes(p.id))
+  const allowed = new Set(possibleParents(projects, project.id).map((p) => p.id))
+  const parents = projectTree(projects).filter(({ project: p }) => allowed.has(p.id))
   const saveName = () => name.trim() && name.trim() !== project.name && updateProject(project.id, { name: name.trim() })
 
   return (
@@ -108,7 +109,7 @@ export function ProjectDialog({ projectId, onClose, onNavigate }: { projectId: s
         ))}
       </div>
 
-      {!hasChildren && (
+      {(parents.length > 0 || project.parentId) && (
         <>
           <label className={`${fieldLabel} mt-5`} htmlFor="parent">Ligger under</label>
           <select
@@ -118,8 +119,8 @@ export function ProjectDialog({ projectId, onClose, onNavigate }: { projectId: s
             className="w-full cursor-pointer rounded-xl border border-glass-border bg-surface px-3.5 py-2.5 text-sm outline-none focus:border-accent"
           >
             <option value="">Ingen – eget hovedprosjekt</option>
-            {parents.map((p) => (
-              <option key={p.id} value={p.id}>{p.name}</option>
+            {parents.map(({ project: p, depth }) => (
+              <option key={p.id} value={p.id}>{`${'\u00a0\u00a0\u00a0'.repeat(depth)}${p.name}`}</option>
             ))}
           </select>
         </>

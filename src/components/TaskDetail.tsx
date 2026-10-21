@@ -1,4 +1,4 @@
-import { AtSign, Bell, Calendar, Clock, Flag, FolderOpen, Inbox, Plus, Repeat, Trash2, X } from 'lucide-react'
+import { AtSign, Bell, Calendar, Clock, Flag, FolderOpen, Inbox, LayoutList, Plus, Repeat, Trash2, X } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { formatDue, MONTHS, todayISO } from '../lib/date'
 import { uid } from '../lib/id'
@@ -187,7 +187,7 @@ function Panel({ task, projects, onClose, update, remove }: PanelProps) {
             <Row icon={<FolderOpen size={16} />} label="Prosjekt">
               <select
                 value={task.projectId ?? ''}
-                onChange={(e) => update({ projectId: e.target.value || undefined })}
+                onChange={(e) => update({ projectId: e.target.value || undefined, sectionId: undefined, columnId: undefined })}
                 className={`${control} cursor-pointer text-right`}
                 aria-label="Prosjekt"
               >
@@ -197,6 +197,21 @@ function Panel({ task, projects, onClose, update, remove }: PanelProps) {
                 ))}
               </select>
             </Row>
+            {project?.sections?.length ? (
+              <Row icon={<LayoutList size={16} />} label="Kategori">
+                <select
+                  value={task.sectionId && project.sections.some((s) => s.id === task.sectionId) ? task.sectionId : ''}
+                  onChange={(e) => update({ sectionId: e.target.value || undefined })}
+                  className={`${control} cursor-pointer text-right`}
+                  aria-label="Kategori"
+                >
+                  <option value="">Ingen</option>
+                  {project.sections.map((s) => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </select>
+              </Row>
+            ) : null}
           </div>
 
           {/* Underoppgaver */}

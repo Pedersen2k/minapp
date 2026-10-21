@@ -1,14 +1,15 @@
-import { AtSign, Check, ChevronRight, Columns3, FolderPlus, List as ListIcon, MoreHorizontal, Pencil, Sparkles, Trash2 } from 'lucide-react'
+import { AtSign, Check, ChevronRight, Columns3, FolderPlus, LayoutList, List as ListIcon, MoreHorizontal, Pencil, Plus, Sparkles, Trash2 } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { addDays, formatDue, formatLong, todayISO } from '../lib/date'
 import { defaultColumns } from '../lib/board'
 import { labelColor } from '../lib/labels'
 import { isInInbox } from '../lib/inbox'
-import { byTaskOrder } from '../lib/order'
-import { childrenOf } from '../lib/projects'
+import { byTaskOrder, sortByPosition } from '../lib/order'
+import { childrenOf, depthOf, descendantIds, MAX_DEPTH } from '../lib/projects'
+import { uid } from '../lib/id'
 import { useEdit } from '../lib/ui-context'
 import { useStore } from '../lib/store'
-import type { Task, View } from '../lib/types'
+import type { Project, Section, Task, View } from '../lib/types'
 import { BoardView } from './BoardView'
 import { Dashboard } from './Dashboard'
 import { CalendarView } from './CalendarView'
@@ -211,32 +212,163 @@ export function TasksView({ view, onNavigate }: TasksViewProps) {
   return <ProjectView key={view.id} id={view.id} onNavigate={onNavigate} />
 }
 
+/** Kort for et underprosjekt med fremdrift (teller med alle nivåer under). */
+function SubprojectCard({ project, onOpen }: { project: Project; onOpen: () => void }) {
+  const { projects, tasks } = useStore()
+  const ids = new Set([project.id, ...descendantIds(projects, project.id)])
+  const all = tasks.filter((t) => t.projectId && ids.has(t.projectId))
+  const open = all.filter((t) => !t.done)
+  const next = tasks.filter((t) => t.projectId === project.id && !t.done).sort(byDueThenOrder)[0]
+  const subCount = childrenOf(projects, project.id).length
+  const pct = all.length ? ((all.length - open.length) / all.length) * 100 : 0
+  return (
+    <button onClick={onOpen} className="group rounded-[20px] border border-glass-border bg-card p-4 text-left transition hover:bg-card-hover">
+      <span className="flex items-center gap-2">
+        <ProjectIcon project={project} />
+        <span className="min-w-0 flex-1 truncate text-[15px] font-semibold group-hover:text-accent">{project.name}</span>
+        <ChevronRight size={15} className="shrink-0 text-faint transition group-hover:translate-x-0.5 group-hover:text-accent" />
+      </span>
+      <span className="mt-1 mb-3 block truncate text-[13px] text-muted">
+        {open.length} åpne{next ? ` · neste: ${next.title}` : subCount ? ` · ${subCount} underprosjekt${subCount === 1 ? '' : 'er'}` : ''}
+      </span>
+      <span className="block h-1.5 overflow-hidden rounded-full bg-hover">
+        <span className="block h-full rounded-full transition-[width]" style={{ width: `${pct}%`, background: project.color }} />
+      </span>
+      <span className="mt-2 block text-xs text-faint">{all.length - open.length} av {all.length} gjort</span>
+    </button>
+  )
+}
+
+/** En kategori (seksjon) inne i et prosjekt: sammenleggbar overskrift, oppgaver og hurtiglegging. */
+function SectionBlock({ project, section, tasks }: { project: Project; section: Section; tasks: Task[] }) {
+  const { updateProject, updateTask } = useStore()
+  const [menu, setMenu] = useState(false)
+  const [renaming, setRenaming] = useState<string | null>(null)
+  const sections = project.sections ?? []
+  const patch = (p: Partial<Section>) => updateProject(project.id, { sections: sections.map((s) => (s.id === section.id ? { ...s, ...p } : s)) })
+  const rename = () => {
+    if (renaming?.trim()) patch({ name: renaming.trim() })
+    setRenaming(null)
+  }
+  const remove = () => {
+    if (!confirm(`Slette kategorien «${section.name}»? Oppgavene blir liggende i prosjektet.`)) return
+    for (const t of tasks) updateTask(t.id, { sectionId: undefined })
+    updateProject(project.id, { sections: sections.filter((s) => s.id !== section.id) })
+  }
+  const menuItem = 'flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-sm hover:bg-hover'
+
+  return (
+    <section className="mt-8">
+      <div className="mb-2.5 flex items-center gap-2 px-1">
+        {renaming !== null ? (
+          <input
+            autoFocus
+            value={renaming}
+            onChange={(e) => setRenaming(e.target.value)}
+            onBlur={rename}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') rename()
+              if (e.key === 'Escape') setRenaming(null)
+            }}
+            className="flex-1 rounded-xl border border-accent bg-surface px-3 py-1.5 text-[15px] font-semibold outline-none"
+          />
+        ) : (
+          <button onClick={() => patch({ collapsed: !section.collapsed })} className="flex min-w-0 items-center gap-1.5 text-left" aria-expanded={!section.collapsed}>
+            <ChevronRight size={15} className={`shrink-0 text-muted transition ${section.collapsed ? '' : 'rotate-90'}`} />
+            <h2 className={`truncate text-[15px] font-semibold ${section.collapsed ? 'text-muted' : ''}`}>{section.name}</h2>
+            <span className="text-xs text-faint">{tasks.length}</span>
+          </button>
+        )}
+        <span className="h-px flex-1 bg-line" />
+        <div className="relative">
+          <button onClick={() => setMenu(!menu)} aria-label={`Valg for ${section.name}`} className="grid size-7 place-items-center rounded-lg text-faint hover:bg-hover hover:text-fg">
+            <MoreHorizontal size={16} />
+          </button>
+          {menu && (
+            <>
+              <div className="fixed inset-0 z-10" onClick={() => setMenu(false)} />
+              <div className="glass-strong animate-rise absolute right-0 z-20 mt-1 w-48 rounded-2xl p-1.5">
+                <button onClick={() => { setRenaming(section.name); setMenu(false) }} className={menuItem}>
+                  <Pencil size={15} /> Gi nytt navn
+                </button>
+                <button onClick={() => { setMenu(false); remove() }} className={`${menuItem} text-[#e5484d]`}>
+                  <Trash2 size={15} /> Slett kategori
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+      {!section.collapsed && (
+        <>
+          <List tasks={tasks} container={{ kind: 'section', projectId: project.id, sectionId: section.id }} showProject={false} />
+          <InlineQuickAdd defaults={{ projectId: project.id, sectionId: section.id }} />
+        </>
+      )}
+    </section>
+  )
+}
+
 function ProjectView({ id, onNavigate }: { id: string; onNavigate: (v: View) => void }) {
   const { projects, tasks, addProject, updateProject, deleteProject } = useStore()
   const [showDone, setShowDone] = useState(false)
   const [menu, setMenu] = useState(false)
   const { editProject } = useEdit()
   const [newSub, setNewSub] = useState<string | null>(null)
+  const [newSection, setNewSection] = useState<string | null>(null)
   const project = projects.find((p) => p.id === id)
   if (!project) return <Empty text="Fant ikke prosjektet" />
 
   const parent = project.parentId ? projects.find((p) => p.id === project.parentId) : undefined
-  const subs = childrenOf(projects, id)
+  const subs = sortByPosition(childrenOf(projects, id))
+  const canAddSub = depthOf(projects, id) < MAX_DEPTH
+  const sections = project.sections ?? []
+  const sectionIds = new Set(sections.map((s) => s.id))
   const mine = tasks.filter((t) => t.projectId === id)
   const open = mine.filter((t) => !t.done).sort(byTaskOrder)
+  // Oppgaver med en kategori som ikke finnes lenger havner blant de uten kategori.
+  const loose = open.filter((t) => !t.sectionId || !sectionIds.has(t.sectionId))
   const done = mine.filter((t) => t.done).sort((a, b) => (b.completedAt ?? 0) - (a.completedAt ?? 0))
 
   const createSub = () => {
-    if (newSub?.trim()) addProject(newSub.trim(), { color: project.color, parentId: id })
+    const name = newSub?.trim()
     setNewSub(null)
+    if (!name) return
+    const p = addProject(name, { color: project.color, parentId: id })
+    if (p) onNavigate({ type: 'project', id: p.id })
+  }
+  const createSection = () => {
+    const name = newSection?.trim()
+    setNewSection(null)
+    if (name) updateProject(id, { sections: [...sections, { id: uid(), name }] })
   }
 
+  const eyebrow = [
+    parent?.name,
+    subs.length ? `${subs.length} underprosjekt${subs.length === 1 ? '' : 'er'}` : '',
+    `${open.length} åpne`,
+    done.length ? `${done.length} fullført` : '',
+  ].filter(Boolean).join(' · ')
   const menuItem = 'flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-sm hover:bg-hover'
+  const nameInput = (value: string, set: (v: string | null) => void, commit: () => void, placeholder: string) => (
+    <input
+      autoFocus
+      value={value}
+      onChange={(e) => set(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') commit()
+        if (e.key === 'Escape') set(null)
+      }}
+      placeholder={placeholder}
+      className="w-full rounded-xl border border-accent bg-surface px-3 py-2 text-sm outline-none"
+    />
+  )
 
   return (
     <>
       <Header
-        eyebrow={parent ? parent.name : `${open.length} åpne · ${done.length} fullført`}
+        eyebrow={eyebrow}
         icon={<ProjectIcon project={project} size="lg" />}
         title={
           <button onClick={() => editProject(id)} className="group flex max-w-full items-center gap-2 text-left" title="Rediger prosjekt">
@@ -265,11 +397,14 @@ function ProjectView({ id, onNavigate }: { id: string; onNavigate: (v: View) => 
                   <button onClick={() => { editProject(id); setMenu(false) }} className={menuItem}>
                     <Pencil size={15} /> Rediger navn, ikon og farge
                   </button>
-                  {!project.parentId && (
+                  {canAddSub && (
                     <button onClick={() => { setNewSub(''); setMenu(false) }} className={menuItem}>
                       <FolderPlus size={15} /> Legg til underprosjekt
                     </button>
                   )}
+                  <button onClick={() => { setNewSection(''); setMenu(false); if (project.view === 'board') updateProject(id, { view: 'list' }) }} className={menuItem}>
+                    <LayoutList size={15} /> Legg til kategori
+                  </button>
                   <div className="my-1 h-px bg-line" />
                   <button
                     onClick={() => {
@@ -291,49 +426,61 @@ function ProjectView({ id, onNavigate }: { id: string; onNavigate: (v: View) => 
         }
       />
 
+      {(subs.length > 0 || newSub !== null) && (
+        <section className="mb-8">
+          <div className="mb-2.5 flex items-center justify-between px-1">
+            <h2 className="text-xs font-semibold tracking-[0.06em] text-muted uppercase">Underprosjekter</h2>
+            {canAddSub && newSub === null && (
+              <button onClick={() => setNewSub('')} className="flex items-center gap-1 text-[13px] font-medium text-accent hover:underline">
+                <Plus size={14} /> Underprosjekt
+              </button>
+            )}
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {subs.map((s) => (
+              <SubprojectCard key={s.id} project={s} onOpen={() => onNavigate({ type: 'project', id: s.id })} />
+            ))}
+            {newSub !== null && (
+              <div className="rounded-[20px] border border-dashed border-accent/40 p-3">{nameInput(newSub, setNewSub, createSub, 'Navn på underprosjekt')}</div>
+            )}
+          </div>
+        </section>
+      )}
+
       {project.view === 'board' ? (
         <BoardView project={project} />
       ) : (
       <>
 
-      <List tasks={open} container={{ kind: 'project', id }} showProject={false} />
-      <InlineQuickAdd defaults={{ projectId: id }} />
-      {open.length === 0 && subs.length === 0 && done.length === 0 && <Empty text="Ingen oppgaver ennå" />}
-
-      {/* Underprosjekter vises som egne seksjoner */}
-      {subs.map((s) => {
-        const subOpen = tasks.filter((t) => t.projectId === s.id && !t.done).sort(byTaskOrder)
-        return (
-          <section key={s.id} className="mt-9">
-            <button onClick={() => onNavigate({ type: 'project', id: s.id })} className="group mb-2.5 flex items-center gap-2.5 px-1">
-              <span className="size-2 rounded-full" style={{ background: s.color }} />
-              <h2 className="text-[15px] font-semibold group-hover:text-accent">{s.name}</h2>
-              <span className="text-xs text-faint">{subOpen.length}</span>
-              <ChevronRight size={15} className="text-faint transition group-hover:translate-x-0.5 group-hover:text-accent" />
-            </button>
-            <List tasks={subOpen} container={{ kind: 'project', id: s.id }} showProject={false} />
-            <InlineQuickAdd defaults={{ projectId: s.id }} />
-          </section>
-        )
-      })}
-
-      {newSub !== null && (
-        <div className="mt-9 flex items-center gap-2.5 px-1">
-          <span className="size-2 rounded-full" style={{ background: project.color }} />
-          <input
-            autoFocus
-            value={newSub}
-            onChange={(e) => setNewSub(e.target.value)}
-            onBlur={createSub}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') createSub()
-              if (e.key === 'Escape') setNewSub(null)
-            }}
-            placeholder="Navn på underprosjekt"
-            className="flex-1 rounded-xl border border-accent bg-surface px-3 py-2 text-sm outline-none"
-          />
-        </div>
+      {(subs.length > 0 || sections.length > 0) && (loose.length > 0 || sections.length === 0) && (
+        <h2 className="mb-2.5 px-1 text-xs font-semibold tracking-[0.06em] text-muted uppercase">
+          {sections.length ? 'Uten kategori' : `Oppgaver i ${project.name}`}
+        </h2>
       )}
+      <List tasks={loose} container={{ kind: 'section', projectId: id }} showProject={false} />
+      {(sections.length === 0 || loose.length > 0) && <InlineQuickAdd defaults={{ projectId: id }} />}
+      {open.length === 0 && subs.length === 0 && sections.length === 0 && done.length === 0 && newSub === null && <Empty text="Ingen oppgaver ennå" />}
+
+      {sections.map((s) => (
+        <SectionBlock key={s.id} project={project} section={s} tasks={open.filter((t) => t.sectionId === s.id)} />
+      ))}
+
+      <div className="mt-8 flex flex-wrap gap-2">
+        {newSection !== null ? (
+          <div className="w-full max-w-sm">{nameInput(newSection, setNewSection, createSection, 'Navn på kategori, f.eks. Innkjøp')}</div>
+        ) : (
+          <>
+            <button onClick={() => setNewSection('')} className="flex items-center gap-1.5 rounded-xl border-[1.5px] border-dashed border-accent/30 px-3 py-2 text-[13px] font-medium text-accent hover:border-accent/60 hover:bg-accent-soft">
+              <Plus size={15} /> Ny kategori
+            </button>
+            {canAddSub && subs.length === 0 && newSub === null && (
+              <button onClick={() => setNewSub('')} className="flex items-center gap-1.5 rounded-xl border-[1.5px] border-dashed border-accent/30 px-3 py-2 text-[13px] font-medium text-accent hover:border-accent/60 hover:bg-accent-soft">
+                <FolderPlus size={15} /> Underprosjekt
+              </button>
+            )}
+          </>
+        )}
+      </div>
 
       {done.length > 0 && (
         <div className="mt-10">
