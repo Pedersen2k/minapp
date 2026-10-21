@@ -20,7 +20,7 @@ Kjør `npm run build` og `npm run lint` før commit.
 ## Struktur
 - `src/components/`: UI (Dashboard*, TasksView, BoardView, CalendarView, PageEditor, QuickAdd, CommandPalette ...).
 - `src/lib/`: logikk. `store.tsx` (tilstand), `sync.ts` + `supabase.ts` (synk), `parse.ts` (norsk hurtiglegging), `recurrence.ts`, `reminders.ts` + `push.ts` (web push), `settings.ts`.
-- `supabase/schema.sql` er grunnskjemaet. Endringer legges som nye, nummererte filer i `supabase/migrations/` (neste er 009).
+- `supabase/schema.sql` er grunnskjemaet. Endringer legges som nye, nummererte filer i `supabase/migrations/` (neste er 010).
 - `supabase/cron.sql` kjører `send-reminders` hvert minutt.
 
 ## Regler
@@ -30,9 +30,9 @@ Kjør `npm run build` og `npm run lint` før commit.
 - Repoet er offentlig: ingen personlige data, e-poster eller tokens i commits.
 
 ## Status (oppdatert 2026-10-21)
-Finnes i koden: innboks, I dag, Kommende, prosjekter og underprosjekter, etiketter, tavle, kalender, sider med blokkeditor, søk/kommandopalett, påminnelser med web push, innstillinger, «Min dag» med flyttbare/skjulbare kort (siste commit), dark mode, Supabase-synk.
+Finnes i koden: innboks, I dag, Kommende, prosjekter med underprosjekter i opptil tre nivåer og kategorier (seksjoner), etiketter, tavle, kalender, sider med blokkeditor, søk/kommandopalett, påminnelser med web push, innstillinger, «Min dag» med flyttbare/skjulbare kort, dark mode, Supabase-synk.
 
-Nylig jobbet med: «Min dag»-kortene (flytt, skjul, endre størrelse) og designforslag (se artifact «Minapp designforslag»).
+Nylig jobbet med: underprosjekter (sammenleggbart tre i menyen, kort med fremdrift) og kategorier i prosjekter (migrasjon 009). Designforslag ligger i artifacten «Minapp designforslag».
 
 ## Neste steg
 Fyll inn ved start av ny økt. Forslag: avklar designretning fra artifacten, deretter polering av mobilvisning.
