@@ -1,7 +1,8 @@
 import { useDraggable, useDroppable } from '@dnd-kit/core'
 import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import { addDays, formatLong, fromISO, MONTHS, toISO, todayISO } from '../lib/date'
+import { holidayName, isoWeek } from '../lib/holidays'
 import { byTaskOrder } from '../lib/order'
 import { useStore } from '../lib/store'
 import type { Task } from '../lib/types'
@@ -10,6 +11,7 @@ import { InlineQuickAdd } from './QuickAdd'
 import { List } from './TaskList'
 import { PRIORITY_COLOR } from './ui'
 
+const GRID_COLS = 'grid-cols-[1.75rem_repeat(7,minmax(0,1fr))] md:grid-cols-[2.5rem_repeat(7,minmax(0,1fr))]'
 const WEEKDAY_SHORT = ['Man', 'Tir', 'Ons', 'Tor', 'Fre', 'Lør', 'Søn']
 
 /** Alle dager som vises i månedsrutenettet: hele uker fra mandag til søndag. */
@@ -71,23 +73,30 @@ export function CalendarView() {
       </div>
 
       <div className="overflow-hidden rounded-3xl border border-glass-border bg-card">
-        <div className="grid grid-cols-7 border-b border-line">
-          {WEEKDAY_SHORT.map((d) => (
-            <div key={d} className="py-2 text-center text-xs font-semibold text-muted">{d}</div>
+        <div className={`grid ${GRID_COLS} border-b border-line`}>
+          <div className="py-2 text-center text-[10px] font-semibold text-faint md:text-xs" title="Ukenummer">Uke</div>
+          {WEEKDAY_SHORT.map((d, i) => (
+            <div key={d} className={`py-2 text-center text-xs font-semibold ${i === 6 ? 'text-[#e5484d]' : 'text-muted'}`}>{d}</div>
           ))}
         </div>
-        <div className="grid grid-cols-7">
+        <div className={`grid ${GRID_COLS}`}>
           {days.map((d, i) => (
-            <DayCell
-              key={d}
-              date={d}
-              tasks={byDay.get(d) ?? []}
-              inMonth={fromISO(d).getMonth() === cursor.month}
-              isToday={d === today}
-              isSelected={d === selected}
-              lastRow={i >= days.length - 7}
-              onSelect={() => setSelected(d)}
-            />
+            <Fragment key={d}>
+              {i % 7 === 0 && (
+                <div className={`flex items-start justify-center border-r border-line pt-2 text-[10px] font-semibold text-faint md:pt-2.5 md:text-xs ${i >= days.length - 7 ? '' : 'border-b'}`}>
+                  {isoWeek(d)}
+                </div>
+              )}
+              <DayCell
+                date={d}
+                tasks={byDay.get(d) ?? []}
+                inMonth={fromISO(d).getMonth() === cursor.month}
+                isToday={d === today}
+                isSelected={d === selected}
+                lastRow={i >= days.length - 7}
+                onSelect={() => setSelected(d)}
+              />
+            </Fragment>
           ))}
         </div>
       </div>
@@ -95,7 +104,8 @@ export function CalendarView() {
       <section className="mt-7">
         <h2 className="mb-2.5 px-1 text-[13px] font-semibold text-muted first-letter:uppercase">
           {selected === today ? 'I dag · ' : ''}
-          {formatLong(selected)}
+          {formatLong(selected)} <span className="font-normal text-faint">· uke {isoWeek(selected)}</span>
+          {holidayName(selected) && <span className="ml-1.5 font-medium text-[#e5484d]">· {holidayName(selected)}</span>}
         </h2>
         <List tasks={selectedTasks} container={{ kind: 'due', date: selected }} showDate={false} />
         <InlineQuickAdd key={selected} defaults={{ due: selected }} />
@@ -130,6 +140,8 @@ function DayCell({ date, tasks, inMonth, isToday, isSelected, lastRow, onSelect 
   const { setNodeRef, isOver } = useDroppable({ id: `cal-day:${date}`, data: { type: 'container', container: { kind: 'due', date }, items: tasks } })
   const weekday = (fromISO(date).getDay() + 6) % 7
   const shown = tasks.slice(0, 3)
+  const holiday = holidayName(date)
+  const redDay = weekday === 6 || (holiday !== undefined && !['Julaften', 'Nyttårsaften'].includes(holiday))
 
   return (
     <div
@@ -139,14 +151,15 @@ function DayCell({ date, tasks, inMonth, isToday, isSelected, lastRow, onSelect 
         isOver ? 'bg-accent-soft' : isSelected ? 'bg-hover' : 'hover:bg-hover'
       } ${inMonth ? '' : 'opacity-45'}`}
     >
-      <div className="mb-1 flex justify-center md:justify-start">
+      <div className="mb-1 flex items-center justify-center gap-1.5 md:justify-start" title={holiday}>
         <span
           className={`grid size-6 place-items-center rounded-full text-xs font-semibold md:size-7 md:text-[13px] ${
-            isToday ? 'bg-accent-gradient text-white shadow-[0_4px_10px_-3px_rgb(91_75_214/0.6)]' : isSelected ? 'text-accent' : ''
+            isToday ? 'bg-accent-gradient text-white shadow-[0_4px_10px_-3px_rgb(91_75_214/0.6)]' : isSelected ? 'text-accent' : redDay ? 'text-[#e5484d]' : ''
           }`}
         >
           {fromISO(date).getDate()}
         </span>
+        {holiday && <span className="hidden min-w-0 truncate text-[11px] font-medium text-[#e5484d] md:inline">{holiday}</span>}
       </div>
 
       {/* PC: oppgavene som brikker. Mobil: prikker, siden rutene er små. */}
