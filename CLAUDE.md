@@ -30,9 +30,9 @@ Kjør `npm run build` og `npm run lint` før commit.
 - Repoet er offentlig: ingen personlige data, e-poster eller tokens i commits.
 
 ## Status (oppdatert 2026-10-21)
-Finnes i koden: innboks, I dag, Kommende, prosjekter med underprosjekter i opptil tre nivåer og kategorier (seksjoner), etiketter, tavle, kalender, sider med blokkeditor, søk/kommandopalett, påminnelser med web push, innstillinger, «Min dag» med flyttbare/skjulbare kort, dark mode, Supabase-synk.
+Finnes i koden: innboks, I dag, Kommende, prosjekter med underprosjekter i opptil tre nivåer og kategorier (seksjoner), etiketter, tavle, kalender (med ukenummer og norske helligdager), sider med blokkeditor, søk/kommandopalett, påminnelser med web push, innstillinger, «Min dag» med flyttbare/skjulbare kort, dark mode, Supabase-synk.
 
-Nylig jobbet med: underprosjekter (sammenleggbart tre i menyen, kort med fremdrift) og kategorier i prosjekter (migrasjon 009). Designforslag ligger i artifacten «Minapp designforslag».
+Nylig jobbet med: ukenummer og norske helligdager i kalenderen (`holidayName`/`isoWeek` i `src/lib/date.ts`), underprosjekter (sammenleggbart tre i menyen, kort med fremdrift) og kategorier i prosjekter (migrasjon 009). Designforslag ligger i artifacten «Minapp designforslag».
 
 ## Neste steg
-Fyll inn ved start av ny økt. Forslag: avklar designretning fra artifacten, deretter polering av mobilvisning.
+Fyll inn ved start av ny økt. Forslag: avklar designretning fra artifacten, deretter polering av mobilvisning (sjekk bl.a. ukenummer-kolonnen i kalenderen på smal skjerm).
