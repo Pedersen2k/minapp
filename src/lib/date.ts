@@ -46,3 +46,61 @@ export function formatLong(iso: string): string {
   const d = fromISO(iso)
   return `${WEEKDAYS[d.getDay()]} ${d.getDate()}. ${MONTHS[d.getMonth()]}`
 }
+
+/** ISO-ukenummer (uke 1 er uka med årets første torsdag). */
+export function isoWeek(iso: string): number {
+  const d = fromISO(iso)
+  d.setDate(d.getDate() + 3 - ((d.getDay() + 6) % 7))
+  const week1 = new Date(d.getFullYear(), 0, 4)
+  return 1 + Math.round(((d.getTime() - week1.getTime()) / 86_400_000 - 3 + ((week1.getDay() + 6) % 7)) / 7)
+}
+
+/** Første påskedag (anonym gregoriansk algoritme). */
+function easterSunday(year: number): string {
+  const a = year % 19
+  const b = Math.floor(year / 100)
+  const c = year % 100
+  const d = Math.floor(b / 4)
+  const e = b % 4
+  const f = Math.floor((b + 8) / 25)
+  const g = Math.floor((b - f + 1) / 3)
+  const h = (19 * a + b - d - g + 15) % 30
+  const i = Math.floor(c / 4)
+  const k = c % 4
+  const l = (32 + 2 * e + 2 * i - h - k) % 7
+  const m = Math.floor((a + 11 * h + 22 * l) / 451)
+  const month = Math.floor((h + l - 7 * m + 114) / 31)
+  const day = ((h + l - 7 * m + 114) % 31) + 1
+  return `${year}-${pad(month)}-${pad(day)}`
+}
+
+const holidayCache = new Map<number, Map<string, string>>()
+
+/** Norske helligdager (røde dager) for et år: dato (ISO) -> navn. */
+export function holidaysOf(year: number): Map<string, string> {
+  const cached = holidayCache.get(year)
+  if (cached) return cached
+  const easter = easterSunday(year)
+  const list: [string, string][] = [
+    [`${year}-01-01`, 'Første nyttårsdag'],
+    [addDays(easter, -3), 'Skjærtorsdag'],
+    [addDays(easter, -2), 'Langfredag'],
+    [easter, 'Første påskedag'],
+    [addDays(easter, 1), 'Andre påskedag'],
+    [`${year}-05-01`, 'Arbeidernes dag'],
+    [`${year}-05-17`, 'Grunnlovsdagen'],
+    [addDays(easter, 39), 'Kristi himmelfartsdag'],
+    [addDays(easter, 49), 'Første pinsedag'],
+    [addDays(easter, 50), 'Andre pinsedag'],
+    [`${year}-12-25`, 'Første juledag'],
+    [`${year}-12-26`, 'Andre juledag'],
+  ]
+  const map = new Map(list)
+  holidayCache.set(year, map)
+  return map
+}
+
+/** Navnet på helligdagen, eller undefined for vanlige dager. */
+export function holidayName(iso: string): string | undefined {
+  return holidaysOf(Number(iso.slice(0, 4))).get(iso)
+}
