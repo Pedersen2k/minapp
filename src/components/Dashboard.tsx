@@ -8,7 +8,7 @@ import { useStore } from '../lib/store'
 import type { Task } from '../lib/types'
 import { useOpenTask } from '../lib/ui-context'
 import { fetchWeather, weatherKind, weatherText, type Weather, type WeatherKind } from '../lib/weather'
-import { BentoCard, NotesCard, PowerCard, ShortcutsCard } from './DashboardCards'
+import { BentoCard, HealthCard, NotesCard, PowerCard, ShortcutsCard } from './DashboardCards'
 import { DashboardGrid, type CardId } from './DashboardGrid'
 import { InlineQuickAdd } from './QuickAdd'
 import { TaskCheckbox, useCompleteTask } from './TaskItem'
@@ -288,6 +288,7 @@ export function Dashboard() {
         )}
       </BentoCard>
     ),
+    health: <HealthCard className="h-full" />,
     notes: (
       <NotesCard settings={settings} onSave={save} className="h-full" />
     ),

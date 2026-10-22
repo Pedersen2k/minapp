@@ -1,8 +1,10 @@
 import { DndContext, MouseSensor, TouchSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, arrayMove, rectSortingStrategy, useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { Check, Pencil, Plus, Trash2, Upload, X } from 'lucide-react'
+import { Check, Flame, Footprints, HeartPulse, Moon, Pencil, Plus, Scale, Timer, Trash2, Upload, X } from 'lucide-react'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { addDays, todayISO } from '../lib/date'
+import { useHealth, type HealthDay } from '../lib/health'
 import { uid } from '../lib/id'
 import { cheapestAndPriciest, fetchPowerPrices, formatKr, POWER_AREA, type PowerPrices } from '../lib/power'
 import type { Settings, Shortcut } from '../lib/settings'
@@ -90,6 +92,104 @@ export function PowerCard({ className = '' }: { className?: string }) {
         <p className="py-3 text-sm text-muted">{error ? 'Kunne ikke hente strømpriser.' : 'Henter strømpriser …'}</p>
       )}
       <p className="mt-auto hidden pt-2 text-[10px] text-faint sm:block">Spotpris inkl. mva, uten nettleie · hvakosterstrommen.no</p>
+    </BentoCard>
+  )
+}
+
+/* ---------- Helse ---------- */
+
+const STEP_GOAL = 8000
+const HEALTH_HELP = 'https://github.com/Pedersen2k/minapp/blob/main/integrations/ios-helse/README.md'
+const nb = (n: number, digits = 0) => n.toLocaleString('nb-NO', { maximumFractionDigits: digits })
+
+function sleepText(h: number): string {
+  const min = Math.round(h * 60)
+  return `${Math.floor(min / 60)} t ${String(min % 60).padStart(2, '0')} m`
+}
+
+export function HealthCard({ className = '' }: { className?: string }) {
+  const { days, loaded } = useHealth()
+  const today = todayISO()
+  const latest: HealthDay | undefined = days[0]
+  const isToday = latest?.day === today
+  // Søvn registreres på morgenen, så vis siste kjente verdi selv om dagens rad ikke har det ennå.
+  const sleep = days.find((d) => d.sleep_h != null)
+  const weight = days.find((d) => d.weight_kg != null)
+  const week = Array.from({ length: 7 }, (_, i) => {
+    const day = addDays(today, i - 6)
+    return { day, steps: days.find((d) => d.day === day)?.steps ?? 0 }
+  })
+  const maxSteps = Math.max(STEP_GOAL, ...week.map((d) => d.steps))
+  const progress = Math.min(1, (latest?.steps ?? 0) / STEP_GOAL)
+
+  const stat = (icon: ReactNode, label: string, value: string | null) =>
+    value && (
+      <div className="min-w-0">
+        <p className="flex items-center gap-1 text-[11px] text-muted">
+          {icon} <span className="truncate">{label}</span>
+        </p>
+        <p className="mt-0.5 truncate text-[15px] font-semibold">{value}</p>
+      </div>
+    )
+
+  return (
+    <BentoCard
+      title="Helse"
+      action={latest && !isToday && <span className="text-[11px] font-medium text-faint">sist {new Date(latest.day).toLocaleDateString('nb-NO', { day: 'numeric', month: 'short' })}</span>}
+      className={`bg-[linear-gradient(135deg,rgb(244_63_94/0.14),var(--card))] ${className}`}
+    >
+      {!latest ? (
+        <div className="flex flex-1 flex-col items-center justify-center py-3 text-center">
+          <HeartPulse size={22} className="mb-2 text-faint" />
+          <p className="mb-3 text-sm text-muted">{loaded ? 'Ingen helsedata ennå. En snarvei på iPhonen sender skritt, søvn og puls hit.' : 'Henter helsedata …'}</p>
+          {loaded && (
+            <a href={HEALTH_HELP} target="_blank" rel="noreferrer" className="text-sm font-semibold text-accent hover:underline">
+              Slik setter du det opp →
+            </a>
+          )}
+        </div>
+      ) : (
+        <div className="flex flex-1 flex-col gap-4 sm:flex-row sm:items-center sm:gap-6">
+          <div className="flex items-center gap-4">
+            <span
+              className="grid size-20 shrink-0 place-items-center rounded-full"
+              style={{ background: `conic-gradient(#f43f5e 0 ${progress * 100}%, rgb(244 63 94 / 0.15) ${progress * 100}% 100%)` }}
+              role="img"
+              aria-label={`${nb(latest.steps ?? 0)} av ${nb(STEP_GOAL)} skritt`}
+            >
+              <span className="grid size-[62px] place-items-center rounded-full bg-surface text-center">
+                <span>
+                  <Footprints size={13} className="mx-auto text-[#f43f5e]" />
+                  <b className="block text-[15px] leading-tight">{latest.steps != null ? nb(latest.steps) : '–'}</b>
+                </span>
+              </span>
+            </span>
+            <div className="flex h-14 items-end gap-1 sm:hidden" aria-hidden>
+              {week.map((d) => (
+                <span key={d.day} className="w-2 rounded-[2px]" style={{ height: `${Math.max(6, (d.steps / maxSteps) * 100)}%`, background: d.day === today ? '#f43f5e' : 'var(--line)' }} />
+              ))}
+            </div>
+          </div>
+          <div className="grid flex-1 grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3">
+            {stat(<Flame size={12} />, 'Aktiv energi', latest.active_kcal != null ? `${nb(latest.active_kcal)} kcal` : null)}
+            {stat(<Timer size={12} />, 'Trening', latest.exercise_min != null ? `${latest.exercise_min} min` : null)}
+            {stat(<Moon size={12} />, 'Søvn', sleep?.sleep_h != null ? sleepText(sleep.sleep_h) : null)}
+            {stat(<HeartPulse size={12} />, 'Hvilepuls', latest.resting_hr != null ? `${latest.resting_hr} bpm` : null)}
+            {stat(<Footprints size={12} />, 'Distanse', latest.distance_km != null ? `${nb(latest.distance_km, 1)} km` : null)}
+            {stat(<Scale size={12} />, 'Vekt', weight?.weight_kg != null ? `${nb(weight.weight_kg, 1)} kg` : null)}
+          </div>
+          <div className="hidden h-16 items-end gap-1 sm:flex" aria-label="Skritt siste 7 dager" role="img">
+            {week.map((d) => (
+              <span
+                key={d.day}
+                title={`${d.day} · ${nb(d.steps)} skritt`}
+                className="w-2.5 rounded-[2px]"
+                style={{ height: `${Math.max(6, (d.steps / maxSteps) * 100)}%`, background: d.day === today ? '#f43f5e' : 'var(--line)' }}
+              />
+            ))}
+          </div>
+        </div>
+      )}
     </BentoCard>
   )
 }
