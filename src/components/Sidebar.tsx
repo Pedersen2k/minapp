@@ -1,7 +1,7 @@
 import { useDroppable } from '@dnd-kit/core'
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { AtSign, Bell, ChevronRight, LayoutGrid, BellOff, BellRing, CalendarDays, CheckCircle2, Pencil, CalendarRange, Cloud, CloudOff, FilePlus, HardDrive, Inbox, LogOut, Monitor, Moon, Plus, RefreshCw, Search, Sun } from 'lucide-react'
+import { AtSign, Bell, ChevronRight, LayoutGrid, BellOff, BellRing, CalendarDays, CheckCircle2, DatabaseBackup, Pencil, CalendarRange, Cloud, CloudOff, FilePlus, HardDrive, Inbox, LogOut, Monitor, Moon, Plus, RefreshCw, Search, Sun, Trash2 } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
 import { todayISO } from '../lib/date'
 import { isInInbox } from '../lib/inbox'
@@ -21,6 +21,7 @@ interface Props {
   view: View
   onNavigate: (v: View) => void
   onSearch: () => void
+  onBackup: () => void
   theme: Theme
   onTheme: (t: Theme) => void
 }
@@ -195,7 +196,7 @@ function ProjectTreeNode({ project, depth, ctx }: { project: Project; depth: num
   )
 }
 
-export function Sidebar({ view, onNavigate, onSearch, theme, onTheme }: Props) {
+export function Sidebar({ view, onNavigate, onSearch, onBackup, theme, onTheme }: Props) {
   const { tasks, projects, pages, addProject, addPage } = useStore()
   const [newProject, setNewProject] = useState<string | null>(null)
   const today = todayISO()
@@ -203,6 +204,8 @@ export function Sidebar({ view, onNavigate, onSearch, theme, onTheme }: Props) {
   const is = (v: View) => JSON.stringify(v) === JSON.stringify(view)
   // Bare etiketter som brukes på åpne oppgaver. Ubrukte finnes fortsatt i søket.
   const labels = allLabels(tasks).filter((l) => l.count > 0)
+  const livePages = sortByPosition(pages.filter((p) => !p.deletedAt))
+  const trashCount = pages.length - livePages.length
   const { editProject, editLabel } = useEdit()
 
   const themeIcon = { light: <Sun size={15} />, dark: <Moon size={15} />, system: <Monitor size={15} /> }
@@ -322,8 +325,8 @@ export function Sidebar({ view, onNavigate, onSearch, theme, onTheme }: Props) {
         )}
 
         <SectionTitle label="Ny side" onAdd={() => onNavigate({ type: 'page', id: addPage().id })}>Sider</SectionTitle>
-        <SortableContext items={sortByPosition(pages).map((p) => `nav-page:${p.id}`)} strategy={verticalListSortingStrategy}>
-          {sortByPosition(pages).map((p) => (
+        <SortableContext items={livePages.map((p) => `nav-page:${p.id}`)} strategy={verticalListSortingStrategy}>
+          {livePages.map((p) => (
             <SortablePage key={p.id} page={p} active={is({ type: 'page', id: p.id })} icon={<span className="text-[15px]">{p.icon}</span>} label={p.title || 'Uten tittel'} onClick={() => onNavigate({ type: 'page', id: p.id })} />
           ))}
         </SortableContext>
@@ -331,11 +334,17 @@ export function Sidebar({ view, onNavigate, onSearch, theme, onTheme }: Props) {
           <span className="grid w-5 place-items-center"><FilePlus size={16} /></span>
           Ny side
         </button>
+        {(trashCount > 0 || view.type === 'trash') && (
+          <NavItem active={is({ type: 'trash' })} icon={<Trash2 size={16} className="text-muted" />} label="Papirkurv" count={trashCount} onClick={() => onNavigate({ type: 'trash' })} />
+        )}
       </div>
 
       <div className="pb-safe border-t border-line px-3 py-2">
         <button onClick={() => onTheme(nextTheme[theme])} className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-sm text-muted hover:bg-hover">
           {themeIcon[theme]} Tema: {themeLabel[theme]}
+        </button>
+        <button onClick={onBackup} className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-sm text-muted hover:bg-hover">
+          <DatabaseBackup size={15} /> Sikkerhetskopi
         </button>
         <PushRow />
         <SyncRow />

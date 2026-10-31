@@ -1,4 +1,4 @@
-import { Bell, Check, Cloud, CloudFog, CloudLightning, CloudRain, CloudSnow, CloudSun, Copy, ExternalLink, Mail, RefreshCw, Settings2, Sun, X } from 'lucide-react'
+import { Bell, Check, Cloud, CloudFog, CloudLightning, CloudRain, CloudSnow, CloudSun, ExternalLink, Mail, RefreshCw, Settings2, Sun, X } from 'lucide-react'
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import scriptCode from '../../integrations/google-apps-script/Code.gs?raw'
 import { formatDue, formatLong, todayISO } from '../lib/date'
@@ -12,6 +12,7 @@ import { BentoCard, NotesCard, PowerCard, ShortcutsCard } from './DashboardCards
 import { DashboardGrid, type CardId } from './DashboardGrid'
 import { InlineQuickAdd } from './QuickAdd'
 import { TaskCheckbox, useCompleteTask } from './TaskItem'
+import { CopyButton } from './ui'
 
 interface MailItem {
   id: string
@@ -373,22 +374,6 @@ function PlanRow({ task, overdue }: { task: Task; overdue: boolean }) {
 
 function randomKey(): string {
   return [...crypto.getRandomValues(new Uint8Array(18))].map((b) => b.toString(16).padStart(2, '0')).join('')
-}
-
-function CopyButton({ text, label }: { text: string; label: string }) {
-  const [copied, setCopied] = useState(false)
-  return (
-    <button
-      onClick={async () => {
-        await navigator.clipboard.writeText(text)
-        setCopied(true)
-        setTimeout(() => setCopied(false), 1500)
-      }}
-      className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-glass-border bg-surface px-2.5 py-1.5 text-xs font-semibold text-accent hover:bg-hover"
-    >
-      {copied ? <Check size={13} /> : <Copy size={13} />} {copied ? 'Kopiert' : label}
-    </button>
-  )
 }
 
 /** Steg-for-steg-oppsett av Apps Script-et som henter e-post og nyheter. */

@@ -1,5 +1,6 @@
 /**
- * Minapp – henter uleste e-poster og nyheter til dashboardet «Min dag».
+ * Minapp – henter uleste e-poster og nyheter til dashboardet «Min dag»,
+ * og lagrer sikkerhetskopier av oppgaver og sider i Google Drive.
  *
  * Kjører på din egen Google-konto (som deg), så ingen egen innlogging trengs i appen.
  * Sender bare avsender, emne og et kort utdrag – aldri hele e-poster – og bare til den
@@ -15,10 +16,31 @@ var NEWS_FEEDS = [
   { source: 'NRK Møre og Romsdal', url: 'https://www.nrk.no/mr/toppsaker.rss' },
 ]
 var NEWS_COUNT = 8
+var BACKUP_FOLDER = 'Minapp sikkerhetskopier'
+var BACKUP_KEEP = 30 // så mange dager med kopier beholdes; eldre legges i papirkurven i Drive
+
+function hasKey_(given) {
+  var key = PropertiesService.getScriptProperties().getProperty('KEY')
+  return !!key && given === key
+}
 
 function doGet(e) {
-  var key = PropertiesService.getScriptProperties().getProperty('KEY')
-  if (!key || !e || !e.parameter || e.parameter.key !== key) return json_({ error: 'Ingen tilgang' })
+  if (!e || !e.parameter || !hasKey_(e.parameter.key)) return json_({ error: 'Ingen tilgang' })
+
+  if (e.parameter.action === 'backups') {
+    try {
+      return json_({ backups: listBackups_() })
+    } catch (err) {
+      return json_({ error: String(err) })
+    }
+  }
+  if (e.parameter.action === 'backup') {
+    try {
+      return json_({ backup: JSON.parse(backupFile_(e.parameter.id).getBlob().getDataAsString()) })
+    } catch (err) {
+      return json_({ error: String(err) })
+    }
+  }
 
   var out = { updated: new Date().toISOString() }
   try {
@@ -93,11 +115,67 @@ function getNews_() {
   return items
 }
 
+/** Tar imot en sikkerhetskopi fra appen: { key, backup }. Én fil per dag; samme dag overskrives. */
+function doPost(e) {
+  var body
+  try {
+    body = JSON.parse(e.postData.contents)
+  } catch (err) {
+    return json_({ error: 'Ugyldig innhold' })
+  }
+  if (!hasKey_(body.key)) return json_({ error: 'Ingen tilgang' })
+  if (!body.backup || body.backup.app !== 'minapp') return json_({ error: 'Mangler sikkerhetskopi' })
+
+  try {
+    var folder = backupFolder_()
+    var day = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd')
+    var name = 'minapp-' + day + '.json'
+    var content = JSON.stringify(body.backup)
+    var existing = folder.getFilesByName(name)
+    var file = existing.hasNext() ? existing.next() : null
+    if (file) file.setContent(content)
+    else file = folder.createFile(name, content, MimeType.PLAIN_TEXT)
+
+    // Rydd: behold bare de nyeste kopiene.
+    listBackups_().slice(BACKUP_KEEP).forEach(function (b) {
+      DriveApp.getFileById(b.id).setTrashed(true)
+    })
+    return json_({ ok: true, id: file.getId(), name: name, savedAt: new Date().toISOString() })
+  } catch (err) {
+    return json_({ error: String(err) })
+  }
+}
+
+function backupFolder_() {
+  var folders = DriveApp.getFoldersByName(BACKUP_FOLDER)
+  return folders.hasNext() ? folders.next() : DriveApp.createFolder(BACKUP_FOLDER)
+}
+
+function listBackups_() {
+  var out = []
+  var files = backupFolder_().getFiles()
+  while (files.hasNext()) {
+    var f = files.next()
+    if (!/^minapp-.*\.json$/.test(f.getName())) continue
+    out.push({ id: f.getId(), name: f.getName(), updated: f.getLastUpdated().toISOString(), size: f.getSize(), url: f.getUrl() })
+  }
+  return out.sort(function (a, b) { return b.updated < a.updated ? -1 : 1 })
+}
+
+/** Henter bare filer fra sikkerhetskopimappen, aldri andre filer i Drive. */
+function backupFile_(id) {
+  var file = DriveApp.getFileById(id)
+  var parents = file.getParents()
+  var folderId = backupFolder_().getId()
+  while (parents.hasNext()) if (parents.next().getId() === folderId) return file
+  throw new Error('Fant ikke sikkerhetskopien')
+}
+
 function json_(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON)
 }
 
-/** Kjør denne én gang fra editoren for å gi tillatelse til Gmail og nett før du publiserer. */
+/** Kjør denne én gang fra editoren for å gi tillatelse til Gmail, Drive og nett før du publiserer. */
 function test() {
-  Logger.log(JSON.stringify({ unread: GmailApp.getInboxUnreadCount(), mails: getMails_().length, news: getNews_().length }))
+  Logger.log(JSON.stringify({ unread: GmailApp.getInboxUnreadCount(), mails: getMails_().length, news: getNews_().length, backups: listBackups_().length }))
 }

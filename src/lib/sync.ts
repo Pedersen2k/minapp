@@ -81,7 +81,7 @@ function toRow(table: Table, item: Item): Row {
     }
   }
   const p = item as Page
-  return { id: p.id, title: p.title, icon: p.icon, blocks: p.blocks, position: p.position ?? null, updated_at: iso(p.updatedAt) }
+  return { id: p.id, title: p.title, icon: p.icon, blocks: p.blocks, position: p.position ?? null, deleted_at: p.deletedAt ? iso(p.deletedAt) : null, updated_at: iso(p.updatedAt) }
 }
 
 function fromRow(table: Table, r: Row): Item {
@@ -120,6 +120,7 @@ function fromRow(table: Table, r: Row): Item {
   }
   const page = { id: r.id, title: r.title, icon: r.icon, blocks: r.blocks, updatedAt: ms(r.updated_at) } as Page
   if (r.position != null) page.position = r.position as number
+  if (r.deleted_at) page.deletedAt = ms(r.deleted_at)
   return page
 }
 
@@ -147,6 +148,9 @@ function saveQueue(q: Op[]) {
 }
 
 // Feil fra databasen (f.eks. ugyldige data) blir ikke bedre av å prøve igjen; nettverksfeil gjør det.
+/** Kolonner fra nyere migrasjoner. Mangler de i databasen, synkes resten av raden likevel. */
+const NEWER_COLUMNS: Partial<Record<Table, string[]>> = { pages: ['deleted_at'] }
+
 const isPermanent = (e: PostgrestError) => !!e.code && /^(PGRST|[0-9A-Z]{5}$)/.test(e.code)
 
 export function useSync(data: AppData, setData: Dispatch<SetStateAction<AppData>>) {
@@ -185,10 +189,16 @@ export function useSync(data: AppData, setData: Dispatch<SetStateAction<AppData>
       while (queue.current.length > 0) {
         setStatus('syncing')
         const op = queue.current[0]
-        const { error } =
+        let { error } =
           op.kind === 'upsert'
             ? await supabase.from(op.table).upsert({ ...op.row, user_id: userId })
             : await supabase.from(op.table).delete().eq('id', op.id)
+        // Kolonnen finnes ikke ennå (migrasjonen er ikke kjørt): send raden uten de nye feltene.
+        if (error?.code === 'PGRST204' && op.row && NEWER_COLUMNS[op.table]) {
+          const row = { ...op.row }
+          for (const c of NEWER_COLUMNS[op.table]!) delete row[c]
+          ;({ error } = await supabase.from(op.table).upsert({ ...row, user_id: userId }))
+        }
         if (error && !isPermanent(error)) {
           setStatus('offline')
           clearTimeout(retryTimer.current)

@@ -14,6 +14,10 @@ export interface Settings {
   notes?: string
   shortcuts?: Shortcut[]
   dashboard?: DashboardLayout
+  /** Siste sikkerhetskopi til Google Drive (ISO-tid). */
+  backupAt?: string
+  /** Daglig kopi til Drive når appen åpnes. Standard er på. */
+  autoBackup?: boolean
 }
 
 /** Brukerens oppsett av «Min dag»: rekkefølge, skjulte kort og størrelse per kort. */

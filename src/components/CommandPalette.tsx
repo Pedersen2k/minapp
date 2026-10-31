@@ -24,7 +24,8 @@ interface Props {
 }
 
 export function CommandPalette({ onClose, onNavigate, onNewTask, onToggleTheme, onOpenTask }: Props) {
-  const { projects, pages, tasks, addPage } = useStore()
+  const { projects, pages: allPages, tasks, addPage } = useStore()
+  const pages = useMemo(() => allPages.filter((p) => !p.deletedAt), [allPages])
   const [query, setQuery] = useState('')
   const [index, setIndex] = useState(0)
 

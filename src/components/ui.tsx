@@ -1,4 +1,5 @@
-import type { ReactNode } from 'react'
+import { Check, Copy } from 'lucide-react'
+import { useState, type ReactNode } from 'react'
 import type { Priority } from '../lib/types'
 
 export const PRIORITY_COLOR: Record<Priority, string> = {
@@ -33,3 +34,19 @@ export function Dot({ color }: { color: string }) {
 
 export const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform)
 export const modKey = isMac ? '⌘' : 'Ctrl'
+
+export function CopyButton({ text, label }: { text: string; label: string }) {
+  const [copied, setCopied] = useState(false)
+  return (
+    <button
+      onClick={async () => {
+        await navigator.clipboard.writeText(text)
+        setCopied(true)
+        setTimeout(() => setCopied(false), 1500)
+      }}
+      className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-glass-border bg-surface px-2.5 py-1.5 text-xs font-semibold text-accent hover:bg-hover"
+    >
+      {copied ? <Check size={13} /> : <Copy size={13} />} {copied ? 'Kopiert' : label}
+    </button>
+  )
+}

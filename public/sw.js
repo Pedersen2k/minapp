@@ -4,7 +4,7 @@
 // - Øvrige egne filer og skrifter: vis lagret versjon, oppdater i bakgrunnen.
 // Supabase-kall går rett til nettet; dataene lagres uansett lokalt av appen.
 
-const CACHE = 'minapp-v2'
+const CACHE = 'minapp-v3'
 const SHELL = ['/', '/manifest.webmanifest', '/icon.svg', '/icon-192.png', '/apple-touch-icon.png']
 
 self.addEventListener('install', (event) => {

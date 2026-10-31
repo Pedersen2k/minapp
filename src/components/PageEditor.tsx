@@ -52,7 +52,7 @@ const PLACEHOLDER: Record<BlockType, string> = {
 }
 
 export function PageEditor({ page, onDeleted }: { page: Page; onDeleted: () => void }) {
-  const { updatePage, deletePage } = useStore()
+  const { updatePage, deletePage, restorePage } = useStore()
   const refs = useRef(new Map<string, HTMLTextAreaElement>())
   const pendingFocus = useRef<{ id: string; pos: number } | null>(null)
   const [focusedId, setFocusedId] = useState<string | null>(null)
@@ -173,6 +173,15 @@ export function PageEditor({ page, onDeleted }: { page: Page; onDeleted: () => v
 
   return (
     <div className="flex min-h-full flex-col">
+      {page.deletedAt && (
+        <div className="mb-6 flex items-center gap-3 rounded-2xl border border-glass-border bg-card px-4 py-3 text-sm">
+          <Trash2 size={16} className="shrink-0 text-muted" />
+          <span className="flex-1 text-muted">Denne siden ligger i papirkurven.</span>
+          <button onClick={() => restorePage(page.id)} className="rounded-lg px-2.5 py-1 font-semibold text-accent hover:bg-hover">
+            Gjenopprett
+          </button>
+        </div>
+      )}
       <div className="group/header relative mb-2">
         <div className="flex items-center justify-between">
           <button
@@ -184,13 +193,12 @@ export function PageEditor({ page, onDeleted }: { page: Page; onDeleted: () => v
           </button>
           <button
             onClick={() => {
-              if (confirm('Slette denne siden?')) {
-                deletePage(page.id)
-                onDeleted()
-              }
+              deletePage(page.id)
+              onDeleted()
             }}
             className="grid size-8 place-items-center rounded-lg text-faint transition hover:bg-hover hover:text-[#e5484d] md:opacity-0 md:group-hover/header:opacity-100"
-            aria-label="Slett side"
+            aria-label="Legg siden i papirkurven"
+            title="Legg i papirkurven"
           >
             <Trash2 size={16} />
           </button>

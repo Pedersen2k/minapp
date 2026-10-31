@@ -134,7 +134,7 @@ export function DragProvider({ children }: { children: ReactNode }) {
     }
 
     if (from.type === 'page' && to.type === 'page') {
-      const list = sortByPosition(pages)
+      const list = sortByPosition(pages.filter((p) => !p.deletedAt))
       const ordered = arrayMove(list, list.findIndex((p) => p.id === from.page.id), list.findIndex((p) => p.id === to.page.id))
       renumber(ordered).forEach((position, id) => updatePage(id, { position }))
     }

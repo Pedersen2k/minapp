@@ -1,5 +1,6 @@
 import { Menu, Plus, Search } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { BackupDialog } from './components/BackupDialog'
 import { CommandPalette } from './components/CommandPalette'
 import { LabelDialog, ProjectDialog } from './components/EditDialogs'
 import { Login } from './components/Login'
@@ -8,6 +9,10 @@ import { QuickAdd } from './components/QuickAdd'
 import { Sidebar, type Theme } from './components/Sidebar'
 import { TaskDetail } from './components/TaskDetail'
 import { TasksView } from './components/TasksView'
+import { MobileDrawer } from './components/MobileDrawer'
+import { UndoToast } from './components/UndoToast'
+import { useAutoBackup } from './lib/backup'
+import { readLaunch } from './lib/launch'
 import { todayISO } from './lib/date'
 import { useRoute } from './lib/route'
 import { useStore } from './lib/store'
@@ -51,8 +56,10 @@ export default function App() {
 }
 
 function Workspace() {
-  const { pages, projects } = useStore()
+  const { pages, projects, tasks, labels, sync, addTask, addPage } = useStore()
   const { view, navigate, taskId, openTask, closeTask } = useRoute()
+  const [backup, setBackup] = useState(false)
+  useAutoBackup({ tasks, projects, pages, labels }, sync.status === 'synced' || sync.status === 'local')
   const [theme, setTheme] = useTheme()
   const [drawer, setDrawer] = useState(false)
   const [palette, setPalette] = useState(false)
@@ -79,6 +86,19 @@ function Workspace() {
   )
   const openQuickAdd = useCallback(() => setQuickAdd(true), [])
 
+  // Åpnet fra en snarvei på app-ikonet eller fra «Del» i en annen app.
+  useEffect(() => {
+    const launch = readLaunch()
+    if (!launch) return
+    if (launch.kind === 'new-task') setQuickAdd(true)
+    else if (launch.kind === 'new-page') navigate({ type: 'page', id: addPage().id })
+    else {
+      const t = addTask({ ...launch.task, priority: 4 })
+      navigate({ type: 'inbox' })
+      setTimeout(() => openTask(t.id), 0)
+    }
+  }, [navigate, addPage, addTask, openTask])
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
@@ -90,6 +110,7 @@ function Workspace() {
       } else if (e.key === 'Escape') {
         setQuickAdd(false)
         setDrawer(false)
+        setBackup(false)
         closeTask()
       }
     }
@@ -105,7 +126,7 @@ function Workspace() {
         ? projects.find((p) => p.id === view.id)?.name ?? ''
         : view.type === 'label'
           ? `@${view.name}`
-          : { inbox: 'Innboks', today: 'I dag', upcoming: 'Kommende', calendar: 'Kalender', done: 'Fullført', dashboard: 'Min dag' }[view.type]
+          : { inbox: 'Innboks', today: 'I dag', upcoming: 'Kommende', calendar: 'Kalender', done: 'Fullført', dashboard: 'Min dag', trash: 'Papirkurv' }[view.type]
 
   // Tavle og kalender trenger bredden; lister og sider leses best smalt.
   const wide = (view.type === 'project' && projects.find((p) => p.id === view.id)?.view === 'board') || view.type === 'calendar' || view.type === 'dashboard'
@@ -120,16 +141,11 @@ function Workspace() {
       <div className="flex h-full md:gap-4 md:p-4">
         {/* Sidemeny: flytende glasspanel på PC, skuff på mobil */}
         <aside className="glass hidden w-[264px] shrink-0 overflow-hidden rounded-3xl md:block">
-          <Sidebar view={view} onNavigate={go} onSearch={() => setPalette(true)} theme={theme} onTheme={setTheme} />
+          <Sidebar view={view} onNavigate={go} onSearch={() => setPalette(true)} onBackup={() => setBackup(true)} theme={theme} onTheme={setTheme} />
         </aside>
-        {drawer && (
-          <div className="fixed inset-0 z-40 md:hidden">
-            <div className="animate-fade absolute inset-0 bg-black/25" onClick={() => setDrawer(false)} />
-            <aside className="glass-strong animate-rise absolute inset-y-2 left-2 w-[82%] max-w-[300px] overflow-hidden rounded-3xl">
-              <Sidebar view={view} onNavigate={go} onSearch={() => { setDrawer(false); setPalette(true) }} theme={theme} onTheme={setTheme} />
-            </aside>
-          </div>
-        )}
+        <MobileDrawer open={drawer} onOpenChange={setDrawer} disabled={quickAdd || palette || !!taskId || !!editing || backup}>
+          <Sidebar view={view} onNavigate={go} onSearch={() => { setDrawer(false); setPalette(true) }} onBackup={() => { setDrawer(false); setBackup(true) }} theme={theme} onTheme={setTheme} />
+        </MobileDrawer>
 
         <main className="flex min-w-0 flex-1 flex-col md:glass md:overflow-hidden md:rounded-[28px]">
           <header className="pt-safe sticky top-0 z-30 md:hidden">
@@ -183,6 +199,10 @@ function Workspace() {
         )}
 
         {taskId && <TaskDetail taskId={taskId} onClose={closeTask} />}
+
+        {backup && <BackupDialog onClose={() => setBackup(false)} />}
+
+        <UndoToast raised={view.type !== 'page' && !quickAdd && !taskId} />
 
         {editing?.kind === 'project' && <ProjectDialog projectId={editing.id} onClose={() => setEditing(null)} onNavigate={go} />}
         {editing?.kind === 'label' && <LabelDialog key={editing.name} name={editing.name} onClose={() => setEditing(null)} onNavigate={go} />}

@@ -1,4 +1,4 @@
-import { AtSign, Check, ChevronRight, Columns3, FolderPlus, LayoutList, List as ListIcon, MoreHorizontal, Pencil, Plus, Sparkles, Trash2 } from 'lucide-react'
+import { AtSign, Check, ChevronRight, RotateCcw, Columns3, FolderPlus, LayoutList, List as ListIcon, MoreHorizontal, Pencil, Plus, Sparkles, Trash2 } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { addDays, formatDue, formatLong, todayISO } from '../lib/date'
 import { defaultColumns } from '../lib/board'
@@ -187,6 +187,7 @@ export function TasksView({ view, onNavigate }: TasksViewProps) {
 
   if (view.type === 'dashboard') return <Dashboard />
   if (view.type === 'done') return <DoneView />
+  if (view.type === 'trash') return <TrashView onNavigate={onNavigate} />
 
   if (view.type === 'label') {
     const tasks = open.filter((t) => t.labels?.includes(view.name))
@@ -547,6 +548,59 @@ function DoneView() {
         </button>
       )}
       {done.length === 0 && <Empty text="Ingen fullførte oppgaver ennå" />}
+    </>
+  )
+}
+
+/** Sider i papirkurven. De kan gjenopprettes i 30 dager. */
+function TrashView({ onNavigate }: { onNavigate: (v: View) => void }) {
+  const { pages, restorePage, purgePages } = useStore()
+  const trashed = pages.filter((p) => p.deletedAt).sort((a, b) => (b.deletedAt ?? 0) - (a.deletedAt ?? 0))
+  const daysLeft = (at: number) => Math.max(0, 30 - Math.floor((Date.now() - at) / 86_400_000))
+
+  return (
+    <>
+      <Header
+        title="Papirkurv"
+        eyebrow={trashed.length ? `${trashed.length} ${trashed.length === 1 ? 'side' : 'sider'} · slettes for godt etter 30 dager` : 'Slettede sider havner her i 30 dager'}
+        icon={<span className="grid size-9 shrink-0 place-items-center rounded-xl bg-hover text-muted"><Trash2 size={19} /></span>}
+        actions={
+          trashed.length > 0 && (
+            <button
+              onClick={() => confirm(`Slette ${trashed.length === 1 ? 'siden' : `alle ${trashed.length} sidene`} for godt?`) && purgePages()}
+              className="flex h-9 items-center gap-2 rounded-xl border border-glass-border bg-card px-3 text-[13px] font-medium text-[#e5484d] hover:bg-card-hover"
+            >
+              Tøm
+            </button>
+          )
+        }
+      />
+      {trashed.length === 0 ? (
+        <Empty text="Papirkurven er tom" />
+      ) : (
+        <ul className="flex flex-col gap-2">
+          {trashed.map((p) => (
+            <li key={p.id} className="flex items-center gap-3 rounded-2xl border border-glass-border bg-card px-4 py-3">
+              <span className="text-xl">{p.icon}</span>
+              <button onClick={() => onNavigate({ type: 'page', id: p.id })} className="min-w-0 flex-1 text-left">
+                <span className="block truncate text-[15px] font-medium">{p.title || 'Uten tittel'}</span>
+                <span className="block text-xs text-faint">Slettet {formatDue(new Date(p.deletedAt!).toLocaleDateString('sv-SE')).toLowerCase()} · {daysLeft(p.deletedAt!)} dager igjen</span>
+              </button>
+              <button onClick={() => restorePage(p.id)} aria-label="Gjenopprett" className="flex h-9 items-center gap-1.5 rounded-xl px-3 text-[13px] font-semibold text-accent hover:bg-hover">
+                <RotateCcw size={14} /> <span className="hidden sm:inline">Gjenopprett</span>
+              </button>
+              <button
+                onClick={() => purgePages([p.id])}
+                aria-label="Slett for godt"
+                title="Slett for godt"
+                className="grid size-9 place-items-center rounded-xl text-faint hover:bg-hover hover:text-[#e5484d]"
+              >
+                <Trash2 size={15} />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
     </>
   )
 }

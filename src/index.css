@@ -127,6 +127,17 @@ body::before {
 .animate-rise { animation: rise 0.18s ease-out; }
 .animate-fade { animation: fade 0.15s ease-out; }
 
+/* Nedtelling på angre-meldingen (samme lengde som SHOW_MS i UndoToast). */
+@keyframes undo-bar {
+  from { transform: scaleX(1); }
+  to { transform: scaleX(0); }
+}
+.animate-undo-bar { animation: undo-bar 6s linear forwards; }
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-undo-bar { animation: none; opacity: 0; }
+}
+
 .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
 .pt-safe { padding-top: env(safe-area-inset-top); }
 

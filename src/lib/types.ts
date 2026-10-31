@@ -69,6 +69,7 @@ export interface Page {
   blocks: Block[]
   position?: number
   updatedAt: number
+  deletedAt?: number // ligger i papirkurven
 }
 
 /** Innstillinger for en etikett. Selve etikettene ligger som navn på oppgavene. */
@@ -95,3 +96,4 @@ export type View =
   | { type: 'project'; id: string }
   | { type: 'label'; name: string }
   | { type: 'page'; id: string }
+  | { type: 'trash' }
