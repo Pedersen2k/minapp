@@ -127,6 +127,47 @@ body::before {
 .animate-rise { animation: rise 0.18s ease-out; }
 .animate-fade { animation: fade 0.15s ease-out; }
 
+/*
+ * Mobilmenyen «Dagbok»: innholdet vris bort som et bokomslag mens menyen er i bruk.
+ * --drawer-p (0–1) og data-drawer settes på <html> av MobileDrawer. 72 % og 380 ms
+ * må stemme med TRAVEL og SETTLE_MS der.
+ */
+@media (max-width: 767px) {
+  html[data-drawer] .book-root {
+    perspective: 1100px;
+    overflow: hidden;
+  }
+  html[data-drawer] .book-page {
+    position: relative;
+    z-index: 10;
+    overflow: hidden;
+    background: var(--mesh), var(--bg);
+    transform-origin: 100% 50%;
+    transform: translateX(calc(var(--drawer-p) * 72%)) rotateY(calc(var(--drawer-p) * -28deg)) scale(calc(1 - var(--drawer-p) * 0.08));
+    border-radius: calc(var(--drawer-p) * 28px);
+    box-shadow: calc(var(--drawer-p) * -24px) 0 calc(var(--drawer-p) * 60px) rgb(0 0 0 / calc(var(--drawer-p) * 0.5));
+    transition:
+      transform 380ms cubic-bezier(0.2, 0.9, 0.25, 1),
+      border-radius 380ms,
+      box-shadow 380ms;
+  }
+  html[data-drawer="drag"] .book-page {
+    transition: none;
+  }
+  html[data-drawer] .book-hide,
+  html[data-drawer] .book-hide * {
+    opacity: calc(1 - var(--drawer-p) * 2);
+    pointer-events: none;
+  }
+}
+
+@media (max-width: 767px) and (prefers-reduced-motion: reduce) {
+  html[data-drawer] .book-page {
+    transform: translateX(calc(var(--drawer-p) * 72%));
+    transition: none;
+  }
+}
+
 /* Nedtelling på angre-meldingen (samme lengde som SHOW_MS i UndoToast). */
 @keyframes undo-bar {
   from { transform: scaleX(1); }

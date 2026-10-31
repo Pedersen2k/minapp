@@ -22,6 +22,8 @@ interface Props {
   onNavigate: (v: View) => void
   onSearch: () => void
   onBackup: () => void
+  /** Vises mellom logoen og søket (dagskortet i mobilmenyen). */
+  top?: ReactNode
   theme: Theme
   onTheme: (t: Theme) => void
 }
@@ -196,7 +198,7 @@ function ProjectTreeNode({ project, depth, ctx }: { project: Project; depth: num
   )
 }
 
-export function Sidebar({ view, onNavigate, onSearch, onBackup, theme, onTheme }: Props) {
+export function Sidebar({ view, onNavigate, onSearch, onBackup, top, theme, onTheme }: Props) {
   const { tasks, projects, pages, addProject, addPage } = useStore()
   const [newProject, setNewProject] = useState<string | null>(null)
   const today = todayISO()
@@ -274,6 +276,7 @@ export function Sidebar({ view, onNavigate, onSearch, onBackup, theme, onTheme }
         </span>
         <span className="text-base font-bold tracking-tight">Minapp</span>
       </div>
+      {top}
 
       <div className="px-3">
         <button onClick={onSearch} className="mb-3 flex w-full items-center gap-2.5 rounded-xl border border-glass-border bg-card px-3 py-2.5 text-sm text-muted transition hover:bg-card-hover">

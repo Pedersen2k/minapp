@@ -9,7 +9,7 @@ import { QuickAdd } from './components/QuickAdd'
 import { Sidebar, type Theme } from './components/Sidebar'
 import { TaskDetail } from './components/TaskDetail'
 import { TasksView } from './components/TasksView'
-import { MobileDrawer } from './components/MobileDrawer'
+import { DayCard, MobileDrawer } from './components/MobileDrawer'
 import { UndoToast } from './components/UndoToast'
 import { useAutoBackup } from './lib/backup'
 import { readLaunch } from './lib/launch'
@@ -138,16 +138,16 @@ function Workspace() {
     <OpenTaskContext.Provider value={openTask}>
       <EditContext.Provider value={editApi}>
       <DragProvider>
-      <div className="flex h-full md:gap-4 md:p-4">
+      <div className="book-root flex h-full md:gap-4 md:p-4">
         {/* Sidemeny: flytende glasspanel på PC, skuff på mobil */}
         <aside className="glass hidden w-[264px] shrink-0 overflow-hidden rounded-3xl md:block">
           <Sidebar view={view} onNavigate={go} onSearch={() => setPalette(true)} onBackup={() => setBackup(true)} theme={theme} onTheme={setTheme} />
         </aside>
         <MobileDrawer open={drawer} onOpenChange={setDrawer} disabled={quickAdd || palette || !!taskId || !!editing || backup}>
-          <Sidebar view={view} onNavigate={go} onSearch={() => { setDrawer(false); setPalette(true) }} onBackup={() => { setDrawer(false); setBackup(true) }} theme={theme} onTheme={setTheme} />
+          <Sidebar view={view} onNavigate={go} onSearch={() => { setDrawer(false); setPalette(true) }} onBackup={() => { setDrawer(false); setBackup(true) }} top={<DayCard />} theme={theme} onTheme={setTheme} />
         </MobileDrawer>
 
-        <main className="flex min-w-0 flex-1 flex-col md:glass md:overflow-hidden md:rounded-[28px]">
+        <main className="book-page flex min-w-0 flex-1 flex-col md:glass md:overflow-hidden md:rounded-[28px]">
           <header className="pt-safe sticky top-0 z-30 md:hidden">
             <div className="flex h-14 items-center gap-2 px-4">
               <button onClick={() => setDrawer(true)} className="glass grid size-10 place-items-center rounded-xl" aria-label="Meny">
@@ -177,7 +177,7 @@ function Workspace() {
 
         {/* Mobil: inndatalinje i glass nederst */}
         {view.type !== 'page' && !quickAdd && !taskId && (
-          <div className="pointer-events-none fixed inset-x-0 bottom-0 z-30 px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] md:hidden">
+          <div className="book-hide pointer-events-none fixed inset-x-0 bottom-0 z-30 px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] md:hidden">
             <button
               onClick={openQuickAdd}
               className="glass-strong pointer-events-auto flex w-full items-center gap-3 rounded-[26px] py-2 pr-2 pl-5 text-left transition active:scale-[0.98]"
