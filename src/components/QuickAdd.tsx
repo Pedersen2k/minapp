@@ -32,7 +32,7 @@ export function QuickAdd({ defaults, autoFocus, onCancel, onAdded }: Props) {
   const parsed = useMemo(() => parseQuickAdd(text), [text])
 
   useEffect(() => {
-    if (autoFocus) inputRef.current?.focus()
+    if (autoFocus) inputRef.current?.focus({ preventScroll: true })
   }, [autoFocus])
 
   const matchedProject = parsed.project ? findProjectByTag(projects, parsed.project) : projects.find((p) => p.id === defaults?.projectId)

@@ -13,6 +13,7 @@ import { DayCard, MobileDrawer } from './components/MobileDrawer'
 import { UndoToast } from './components/UndoToast'
 import { useAutoBackup } from './lib/backup'
 import { readLaunch } from './lib/launch'
+import { useVisibleViewport } from './lib/viewport'
 import { todayISO } from './lib/date'
 import { useRoute } from './lib/route'
 import { useStore } from './lib/store'
@@ -59,6 +60,7 @@ function Workspace() {
   const { pages, projects, tasks, labels, sync, addTask, addPage } = useStore()
   const { view, navigate, taskId, openTask, closeTask } = useRoute()
   const [backup, setBackup] = useState(false)
+  const quickAddBox = useVisibleViewport()
   useAutoBackup({ tasks, projects, pages, labels }, sync.status === 'synced' || sync.status === 'local')
   const [theme, setTheme] = useTheme()
   const [drawer, setDrawer] = useState(false)
@@ -191,7 +193,7 @@ function Workspace() {
         )}
 
         {quickAdd && (
-          <div className="animate-fade fixed inset-0 z-50 flex items-end justify-center bg-black/25 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] md:items-start md:pt-[18vh]" onMouseDown={() => setQuickAdd(false)}>
+          <div style={quickAddBox} className="animate-fade fixed inset-0 z-50 flex items-end justify-center bg-black/25 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] md:items-start md:pt-[18vh]" onMouseDown={() => setQuickAdd(false)}>
             <div className="w-full max-w-lg" onMouseDown={(e) => e.stopPropagation()}>
               <QuickAdd defaults={quickAddDefaults} autoFocus onCancel={() => setQuickAdd(false)} onAdded={() => setQuickAdd(false)} />
             </div>
