@@ -32,7 +32,7 @@ Kjør `npm run build` og `npm run lint` før commit.
 ## Status (oppdatert 2026-10-21)
 Finnes i koden: innboks, I dag, Kommende, prosjekter med underprosjekter i opptil tre nivåer og kategorier (seksjoner), etiketter, tavle, kalender, sider med blokkeditor, søk/kommandopalett, påminnelser med web push, innstillinger, «Min dag» med flyttbare/skjulbare kort, dark mode, Supabase-synk.
 
-Nylig jobbet med: underprosjekter (sammenleggbart tre i menyen, kort med fremdrift) og kategorier i prosjekter (migrasjon 009). Designforslag ligger i artifacten «Minapp designforslag».
+Nylig jobbet med (branch `tester`): angre-melding (`UndoToast`, `undoable` i store), papirkurv for sider (migrasjon 010), sikkerhetskopi som fil og til Google Drive via Apps Script (`lib/backup.ts`, `BackupDialog`), del til appen og snarveier (manifest + `lib/launch.ts`), sidemeny som dras inn fra venstre kant (`MobileDrawer`). Forslag til mobilmeny ligger i artifacten «Minapp sveipemeny».
 
 ## Neste steg
 Fyll inn ved start av ny økt. Forslag: avklar designretning fra artifacten, deretter polering av mobilvisning.
