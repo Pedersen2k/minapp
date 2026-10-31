@@ -1,7 +1,7 @@
 import { useDroppable } from '@dnd-kit/core'
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { AtSign, Bell, ChevronRight, LayoutGrid, MailCheck, BellOff, BellRing, CalendarDays, CheckCircle2, DatabaseBackup, Pencil, CalendarRange, Cloud, CloudOff, FilePlus, HardDrive, Inbox, LogOut, Monitor, Moon, Plus, RefreshCw, Search, Sun, Trash2 } from 'lucide-react'
+import { AtSign, Bell, ChevronRight, LayoutGrid, BellOff, BellRing, CalendarDays, CheckCircle2, DatabaseBackup, Pencil, CalendarRange, Cloud, CloudOff, FilePlus, HardDrive, Inbox, LogOut, Monitor, Moon, Plus, RefreshCw, Search, Sun, Trash2 } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
 import { todayISO } from '../lib/date'
 import { isInInbox } from '../lib/inbox'
@@ -22,7 +22,6 @@ interface Props {
   onNavigate: (v: View) => void
   onSearch: () => void
   onBackup: () => void
-  onMailAgent: () => void
   /** Vises mellom logoen og søket (dagskortet i mobilmenyen). */
   top?: ReactNode
   theme: Theme
@@ -199,7 +198,7 @@ function ProjectTreeNode({ project, depth, ctx }: { project: Project; depth: num
   )
 }
 
-export function Sidebar({ view, onNavigate, onSearch, onBackup, onMailAgent, top, theme, onTheme }: Props) {
+export function Sidebar({ view, onNavigate, onSearch, onBackup, top, theme, onTheme }: Props) {
   const { tasks, projects, pages, addProject, addPage } = useStore()
   const [newProject, setNewProject] = useState<string | null>(null)
   const today = todayISO()
@@ -349,9 +348,6 @@ export function Sidebar({ view, onNavigate, onSearch, onBackup, onMailAgent, top
         </button>
         <button onClick={onBackup} className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-sm text-muted hover:bg-hover">
           <DatabaseBackup size={15} /> Sikkerhetskopi
-        </button>
-        <button onClick={onMailAgent} className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-sm text-muted hover:bg-hover">
-          <MailCheck size={15} /> E-postassistent
         </button>
         <PushRow />
         <SyncRow />

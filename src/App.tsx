@@ -1,7 +1,6 @@
 import { Menu, Plus, Search } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { BackupDialog } from './components/BackupDialog'
-import { MailAgentDialog } from './components/MailAgentDialog'
 import { CommandPalette } from './components/CommandPalette'
 import { LabelDialog, ProjectDialog } from './components/EditDialogs'
 import { Login } from './components/Login'
@@ -61,7 +60,6 @@ function Workspace() {
   const { pages, projects, tasks, labels, sync, addTask, addPage } = useStore()
   const { view, navigate, taskId, openTask, closeTask } = useRoute()
   const [backup, setBackup] = useState(false)
-  const [mailAgent, setMailAgent] = useState(false)
   const quickAddBox = useVisibleViewport()
   useAutoBackup({ tasks, projects, pages, labels }, sync.status === 'synced' || sync.status === 'local')
   const [theme, setTheme] = useTheme()
@@ -115,7 +113,6 @@ function Workspace() {
         setQuickAdd(false)
         setDrawer(false)
         setBackup(false)
-        setMailAgent(false)
         closeTask()
       }
     }
@@ -146,10 +143,10 @@ function Workspace() {
       <div className="book-root flex h-full md:gap-4 md:p-4">
         {/* Sidemeny: flytende glasspanel på PC, skuff på mobil */}
         <aside className="glass hidden w-[264px] shrink-0 overflow-hidden rounded-3xl md:block">
-          <Sidebar view={view} onNavigate={go} onSearch={() => setPalette(true)} onBackup={() => setBackup(true)} onMailAgent={() => setMailAgent(true)} theme={theme} onTheme={setTheme} />
+          <Sidebar view={view} onNavigate={go} onSearch={() => setPalette(true)} onBackup={() => setBackup(true)} theme={theme} onTheme={setTheme} />
         </aside>
-        <MobileDrawer open={drawer} onOpenChange={setDrawer} disabled={quickAdd || palette || !!taskId || !!editing || backup || mailAgent}>
-          <Sidebar view={view} onNavigate={go} onSearch={() => { setDrawer(false); setPalette(true) }} onBackup={() => { setDrawer(false); setBackup(true) }} onMailAgent={() => { setDrawer(false); setMailAgent(true) }} top={<DayCard />} theme={theme} onTheme={setTheme} />
+        <MobileDrawer open={drawer} onOpenChange={setDrawer} disabled={quickAdd || palette || !!taskId || !!editing || backup}>
+          <Sidebar view={view} onNavigate={go} onSearch={() => { setDrawer(false); setPalette(true) }} onBackup={() => { setDrawer(false); setBackup(true) }} top={<DayCard />} theme={theme} onTheme={setTheme} />
         </MobileDrawer>
 
         <main className="book-page flex min-w-0 flex-1 flex-col md:glass md:overflow-hidden md:rounded-[28px]">
@@ -206,7 +203,6 @@ function Workspace() {
         {taskId && <TaskDetail taskId={taskId} onClose={closeTask} />}
 
         {backup && <BackupDialog onClose={() => setBackup(false)} />}
-        {mailAgent && <MailAgentDialog onClose={() => setMailAgent(false)} onNavigate={go} />}
 
         <UndoToast raised={view.type !== 'page' && !quickAdd && !taskId} />
 
