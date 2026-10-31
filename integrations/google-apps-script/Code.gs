@@ -1,6 +1,6 @@
 /**
- * Minapp – henter uleste e-poster og nyheter til dashboardet «Min dag»,
- * og lagrer sikkerhetskopier av oppgaver og sider i Google Drive.
+ * Minapp – henter uleste e-poster og nyheter til dashboardet «Min dag», gir nye e-poster
+ * til e-postassistenten og lagrer sikkerhetskopier av oppgaver og sider i Google Drive.
  *
  * Kjører på din egen Google-konto (som deg), så ingen egen innlogging trengs i appen.
  * Sender bare avsender, emne og et kort utdrag – aldri hele e-poster – og bare til den
@@ -27,6 +27,13 @@ function hasKey_(given) {
 function doGet(e) {
   if (!e || !e.parameter || !hasKey_(e.parameter.key)) return json_({ error: 'Ingen tilgang' })
 
+  if (e.parameter.action === 'agent') {
+    try {
+      return json_({ messages: getAgentMails_() })
+    } catch (err) {
+      return json_({ error: String(err) })
+    }
+  }
   if (e.parameter.action === 'backups') {
     try {
       return json_({ backups: listBackups_() })
@@ -70,6 +77,31 @@ function getMails_() {
       subject: m.getSubject() || '(uten emne)',
       snippet: m.getPlainBody().replace(/\s+/g, ' ').trim().slice(0, 160),
       date: m.getDate().toISOString(),
+      url: 'https://mail.google.com/mail/u/0/#inbox/' + thread.getId(),
+    }
+  })
+}
+
+/**
+ * Nye e-poster til e-postassistenten (siste to døgn, uten reklame og sosiale medier).
+ * Sender mer tekst enn til «Min dag», men aldri vedlegg, og bare til den som har nøkkelen.
+ */
+var AGENT_QUERY = 'in:inbox newer_than:2d -category:promotions -category:social'
+var AGENT_COUNT = 20
+var AGENT_BODY_CHARS = 3000
+
+function getAgentMails_() {
+  return GmailApp.search(AGENT_QUERY, 0, AGENT_COUNT).map(function (thread) {
+    var messages = thread.getMessages()
+    var m = messages[messages.length - 1]
+    var from = m.getFrom()
+    return {
+      id: m.getId(),
+      threadId: thread.getId(),
+      from: from.replace(/<.*>/, '').replace(/"/g, '').trim() || from,
+      subject: m.getSubject() || '(uten emne)',
+      date: m.getDate().toISOString(),
+      body: m.getPlainBody().replace(/\s+/g, ' ').trim().slice(0, AGENT_BODY_CHARS),
       url: 'https://mail.google.com/mail/u/0/#inbox/' + thread.getId(),
     }
   })

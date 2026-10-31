@@ -17,3 +17,19 @@ select cron.schedule(
   );
   $$
 );
+
+-- E-postassistenten: går gjennom ny e-post hver time (7 over). Samme <CRON_SECRET> som over.
+select cron.unschedule('mail-agent') where exists (select 1 from cron.job where jobname = 'mail-agent');
+
+select cron.schedule(
+  'mail-agent',
+  '7 * * * *',
+  $$
+  select net.http_post(
+    url := 'https://vzdhjlzqaujefhmqrgnr.supabase.co/functions/v1/mail-agent',
+    headers := jsonb_build_object('Content-Type', 'application/json', 'x-cron-secret', '<CRON_SECRET>'),
+    body := '{}'::jsonb,
+    timeout_milliseconds := 120000
+  );
+  $$
+);

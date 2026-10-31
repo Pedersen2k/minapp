@@ -18,6 +18,10 @@ export interface Settings {
   backupAt?: string
   /** Daglig kopi til Drive når appen åpnes. Standard er på. */
   autoBackup?: boolean
+  /** E-postassistenten går gjennom ny e-post hver time. */
+  mailAgent?: boolean
+  /** Brukerens tidssone (IANA), så påminnelser fra e-post kommer til riktig tid. */
+  timeZone?: string
 }
 
 /** Brukerens oppsett av «Min dag»: rekkefølge, skjulte kort og størrelse per kort. */
