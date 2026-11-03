@@ -15,6 +15,7 @@ Mørk glass-UI i Apple-stil, 390×844 per skjerm. Eksempeldata, ikke koblet til 
 4. **Nytt vitamin** (ark): søk eller velg vanlige tilskudd (D-vitamin, omega-3, tran, B12, jern, folat …), dose med enhet (µg, mg, IE, stk), hvor ofte (hver dag, annenhver dag, valgte dager, ukentlig), ett eller flere tidspunkt, «ta med mat», påminnelse og beholdning.
 5. **Innsikt**: vektkurve med doseskifter markert, vitaminkalender for måneden, bivirkninger siste 30 dager og rapport til legetimen.
 6. **Logg injeksjon** (ark over Wegovy): dose og tidspunkt, injeksjonssted på en kroppsfigur (mage, lår, overarm, venstre/høyre) med forrige sted markert, bivirkninger siden sist, vekt og notat.
+7–9. **Førstegangsoppsett** i tre steg: velg vitaminer og Wegovy, bare vitaminer eller bare Wegovy; kryss av vitaminene du tar og når på dagen; dosen du tar nå, startdato, injeksjonsdag, klokkeslett, startvekt og varsler. Hopper man over Wegovy, blir det to steg.
 
 ## Prinsipper
 - Norsk først: norske ukedager (M T O T F L S), komma som desimaltegn, «µg» og «IE» som enheter.
