@@ -34,5 +34,10 @@ Finnes i koden: innboks, I dag, Kommende, prosjekter med underprosjekter i oppti
 
 Nylig jobbet med (branch `tester`): angre-melding (`UndoToast`, `undoable` i store), papirkurv for sider (migrasjon 010), sikkerhetskopi som fil og til Google Drive via Apps Script (`lib/backup.ts`, `BackupDialog`), del til appen og snarveier (manifest + `lib/launch.ts`), sidemeny som dras inn fra venstre kant (`MobileDrawer`). Forslag til mobilmeny ligger i artifacten «Minapp sveipemeny».
 
+### Vital (egen helse-app, bare design så langt)
+«Helse-appen» = Vital: norsk app for vitaminer og Wegovy, separat fra Minapp. Målet er en populær app der brukeren selv velger vitaminer, dose og hvor ofte. Bare design finnes, i `design/vital/` (deployes ikke). Se `design/vital/README.md`. Ni skjermer: I dag, Wegovy, Vitaminer, Nytt vitamin, Innsikt, Logg injeksjon og førstegangsoppsett i tre steg. Designkilden er `source/project/*.dc.html` + `canvas.json`. `vital-static.html` og `skjermer.jpg` viser alt samlet. Hold de to versjonene like.
+
+Neste for Vital: lys modus, deretter avklare hvor appen skal bygges (eget repo?).
+
 ## Neste steg
 Fyll inn ved start av ny økt. Forslag: avklar designretning fra artifacten, deretter polering av mobilvisning.

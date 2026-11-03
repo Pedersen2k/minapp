@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="no">
+<head>
+<meta charset="utf-8">
+<title>Vital · Oppsett 3 · Wegovy</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#07070C;font-family:"Inter",-apple-system,BlinkMacSystemFont,"SF Pro Display",system-ui,sans-serif;color:#F5F5F7;-webkit-font-smoothing:antialiased}
+.screen{width:390px;height:844px;position:relative;overflow:hidden}
+.glass{background:linear-gradient(180deg,rgba(255,255,255,.16) 0%,rgba(255,255,255,.05) 100%);border:1px solid rgba(255,255,255,.14);box-shadow:inset 0 1px 0 rgba(255,255,255,.28),0 24px 48px -24px rgba(0,0,0,.7);border-radius:28px;position:absolute;backdrop-filter:blur(24px) saturate(170%);-webkit-backdrop-filter:blur(24px) saturate(170%)}
+.row{background:linear-gradient(180deg,rgba(255,255,255,.12) 0%,rgba(255,255,255,.04) 100%);border:1px solid rgba(255,255,255,.10);border-radius:22px;position:absolute;left:20px;right:20px;height:64px;display:flex;align-items:center;gap:14px;padding:0 16px}
+.row.flow{position:relative;left:auto;right:auto;margin-bottom:8px}
+.muted{color:rgba(255,255,255,.55)}
+.eyebrow{font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.55)}
+.ico{width:36px;height:36px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex:none;font-size:13px;font-weight:800;color:rgba(0,0,0,.62);letter-spacing:-.02em}
+.check{width:28px;height:28px;border-radius:50%;background:linear-gradient(180deg,#A7F3D0,#5EEAD4);display:flex;align-items:center;justify-content:center;flex:none;color:#064E3B}
+.ring-empty{width:28px;height:28px;border-radius:50%;border:2px solid rgba(255,255,255,.35);flex:none}
+.tabbar{position:absolute;left:16px;right:16px;bottom:24px;height:72px;border-radius:30px;display:flex;justify-content:space-around;align-items:center;padding:0 12px;background:linear-gradient(180deg,rgba(255,255,255,.18),rgba(255,255,255,.06));border:1px solid rgba(255,255,255,.14)}
+.tab{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:11px;font-weight:600;color:rgba(255,255,255,.55);width:72px}
+.tab svg{width:22px;height:22px}
+.gloss{position:absolute;inset:0;border-radius:inherit;background:linear-gradient(160deg,rgba(255,255,255,.35) 0%,rgba(255,255,255,0) 42%);pointer-events:none}
+.toggle{width:50px;height:30px;border-radius:999px;position:relative;flex:none;background:linear-gradient(180deg,#A7F3D0,#5EEAD4)}
+.toggle::after{content:"";position:absolute;right:3px;top:3px;width:24px;height:24px;border-radius:50%;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.3)}
+.toggle.off{background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.18)}
+.toggle.off::after{right:auto;left:2px;top:2px}
+.iconbtn{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex:none}
+.iconbtn svg{width:20px;height:20px}
+.chip{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 13px;border-radius:999px;font-size:13px;font-weight:600;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.85);white-space:nowrap}
+.chip.on{background:rgba(94,234,212,.16);border-color:rgba(94,234,212,.5);color:#5EEAD4}
+.seg{display:flex;padding:3px;border-radius:14px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.10)}
+.seg div{flex:1;height:32px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:rgba(255,255,255,.6)}
+.seg div.on{background:rgba(255,255,255,.92);color:#0B0B12}
+.field{height:46px;border-radius:14px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);display:flex;align-items:center;padding:0 14px;font-size:15px}
+.sec{font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.55);margin:0 0 8px 4px}
+.pill{font-size:11px;font-weight:700;padding:3px 8px;border-radius:999px;background:rgba(255,255,255,.08);color:rgba(255,255,255,.6);white-space:nowrap}
+.pill.warn{background:rgba(251,191,36,.16);color:#FCD34D}
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.cal i{height:12px;border-radius:4px;background:#5EEAD4}
+.cal i.p{background:rgba(94,234,212,.4)}
+.cal i.m{background:rgba(255,255,255,.10)}
+.cal i.e{background:none}
+.cal i.f{background:none;border:1px dashed rgba(255,255,255,.12)}
+.bar{height:8px;border-radius:4px;background:rgba(255,255,255,.08);flex:1;overflow:hidden}
+.bar b{display:block;height:100%;border-radius:4px;background:linear-gradient(90deg,#C4B5FD,#EC4899)}
+.steps{position:absolute;left:24px;right:24px;top:62px;display:flex;gap:6px;align-items:center}
+.steps i{flex:1;height:4px;border-radius:2px;background:rgba(255,255,255,.14)}
+.steps i.on{background:#5EEAD4}
+.steps span{font-size:12px;font-weight:600;color:rgba(255,255,255,.5);margin-left:8px;white-space:nowrap}
+.ob-title{position:absolute;left:24px;right:24px;top:94px}
+.ob-title h1{margin:0;font-size:30px;line-height:1.12;font-weight:800;letter-spacing:-.02em}
+.ob-title p{margin:8px 0 0;font-size:15px;line-height:1.4;color:rgba(255,255,255,.6)}
+.opt{position:relative;display:flex;align-items:center;gap:14px;padding:16px;border-radius:24px;background:linear-gradient(180deg,rgba(255,255,255,.10),rgba(255,255,255,.03));border:1px solid rgba(255,255,255,.12);margin-bottom:12px}
+.opt.on{background:linear-gradient(180deg,rgba(94,234,212,.16),rgba(94,234,212,.04));border-color:rgba(94,234,212,.55)}
+.radio{width:24px;height:24px;border-radius:50%;border:2px solid rgba(255,255,255,.3);flex:none}
+.opt.on .radio{border:7px solid #5EEAD4}
+.tile{height:50px;border-radius:16px;display:flex;align-items:center;gap:10px;padding:0 10px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.10);font-size:14px;font-weight:600;position:relative}
+.tile .ico{width:30px;height:30px;border-radius:10px;font-size:11px}
+.tile.on{background:rgba(94,234,212,.12);border-color:rgba(94,234,212,.5)}
+.tile.on::after{content:"";position:absolute;right:10px;top:50%;margin-top:-9px;width:18px;height:18px;border-radius:50%;background:#5EEAD4 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23064E3B' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 12.5l4 4 8-9'/%3E%3C/svg%3E") center/12px no-repeat}
+.cta{position:absolute;left:20px;right:20px;bottom:34px;height:54px;border-radius:999px;background:#F5F5F7;color:#0B0B12;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700}
+.day{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;background:rgba(255,255,255,.07);color:rgba(255,255,255,.6)}
+.day.on{background:linear-gradient(150deg,#C4B5FD,#EC4899);color:#fff}
+</style>
+</helmet>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+    <symbol id="i-pill" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.5 20.5a5 5 0 0 1-7-7l10-10a5 5 0 0 1 7 7z"/><path d="M8.5 8.5l7 7"/></symbol>
+    <symbol id="i-pen" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 2l4 4M15 5l4 4M17 7L7.5 16.5M14 4l6 6-9 9H5v-6z"/><path d="M5 19l-3 3"/></symbol>
+    <symbol id="i-chart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 6-6"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+    <symbol id="i-more" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
+    <symbol id="i-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></symbol>
+    <symbol id="i-bell" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></symbol>
+    <symbol id="i-share"viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 8l5-5 5 5"/><path d="M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></symbol>
+  </defs>
+</svg>
+
+<!-- FØRSTEGANGSOPPSETT 3: WEGOVY -->
+<div class="screen" style="background:radial-gradient(110% 50% at 100% 0%,rgba(244,114,182,.26) 0%,rgba(244,114,182,0) 60%),radial-gradient(100% 55% at 0% 40%,rgba(167,139,250,.30) 0%,rgba(167,139,250,0) 62%),#07070C">
+  <div class="steps"><i class="on"></i><i class="on"></i><i class="on"></i><span>3 av 3</span></div>
+  <div class="ob-title">
+    <h1>Din Wegovy-behandling</h1>
+    <p>Så minner Vital deg på riktig dose til riktig tid.</p>
+  </div>
+
+  <div style="position:absolute;left:20px;right:20px;top:212px">
+    <div class="sec">Dosen du tar nå</div>
+    <div class="seg"><div>0,25</div><div class="on">0,5</div><div>1,0</div><div>1,7</div><div>2,4</div></div>
+    <div class="muted" style="font-size:12px;margin:6px 4px 0">mg per uke. Nettopp startet? Velg 0,25.</div>
+
+    <div class="sec" style="margin-top:18px">Startet behandlingen</div>
+    <div class="field" style="justify-content:space-between"><span style="font-weight:600">22. september 2026</span><span style="font-size:13px;color:#C4B5FD;font-weight:600">uke 7</span></div>
+
+    <div class="sec" style="margin-top:18px">Injeksjonsdag og tid</div>
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <span class="day">M</span><span class="day">T</span><span class="day">O</span><span class="day">T</span><span class="day">F</span><span class="day">L</span><span class="day on">S</span>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:10px">
+      <div class="field" style="flex:1;justify-content:space-between"><span class="muted" style="font-size:13px">Klokkeslett</span><span style="font-weight:700">20:00</span></div>
+      <div class="field" style="flex:1;justify-content:space-between"><span class="muted" style="font-size:13px">Startvekt</span><span style="font-weight:700">97,2 kg</span></div>
+    </div>
+
+    <div style="margin-top:18px;display:flex;gap:12px;align-items:center;padding:14px 12px 14px 14px;border-radius:20px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12)">
+      <div class="ico" style="background:rgba(196,181,253,.18);color:#C4B5FD"><svg width="20" height="20"><use href="#i-bell"/></svg></div>
+      <div style="flex:1;font-size:13px;line-height:1.4"><b style="font-size:14px">Slå på varsler</b><br><span class="muted">Dagen før og på injeksjonsdagen</span></div>
+      <div class="toggle"></div>
+    </div>
+  </div>
+
+  <div class="cta" style="background:linear-gradient(150deg,#C4B5FD 0%,#A78BFA 35%,#EC4899 100%);color:#fff;box-shadow:inset 0 1px 0 rgba(255,255,255,.5),0 20px 40px -20px rgba(236,72,153,.8)">Kom i gang</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview": {"width": 390, "height": 844}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

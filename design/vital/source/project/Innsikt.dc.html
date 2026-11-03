@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="no">
+<head>
+<meta charset="utf-8">
+<title>Vital · Innsikt</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#07070C;font-family:"Inter",-apple-system,BlinkMacSystemFont,"SF Pro Display",system-ui,sans-serif;color:#F5F5F7;-webkit-font-smoothing:antialiased}
+.screen{width:390px;height:844px;position:relative;overflow:hidden}
+.glass{background:linear-gradient(180deg,rgba(255,255,255,.16) 0%,rgba(255,255,255,.05) 100%);border:1px solid rgba(255,255,255,.14);box-shadow:inset 0 1px 0 rgba(255,255,255,.28),0 24px 48px -24px rgba(0,0,0,.7);border-radius:28px;position:absolute;backdrop-filter:blur(24px) saturate(170%);-webkit-backdrop-filter:blur(24px) saturate(170%)}
+.row{background:linear-gradient(180deg,rgba(255,255,255,.12) 0%,rgba(255,255,255,.04) 100%);border:1px solid rgba(255,255,255,.10);border-radius:22px;position:absolute;left:20px;right:20px;height:64px;display:flex;align-items:center;gap:14px;padding:0 16px}
+.row.flow{position:relative;left:auto;right:auto;margin-bottom:8px}
+.muted{color:rgba(255,255,255,.55)}
+.eyebrow{font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.55)}
+.ico{width:36px;height:36px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex:none;font-size:13px;font-weight:800;color:rgba(0,0,0,.62);letter-spacing:-.02em}
+.check{width:28px;height:28px;border-radius:50%;background:linear-gradient(180deg,#A7F3D0,#5EEAD4);display:flex;align-items:center;justify-content:center;flex:none;color:#064E3B}
+.ring-empty{width:28px;height:28px;border-radius:50%;border:2px solid rgba(255,255,255,.35);flex:none}
+.tabbar{position:absolute;left:16px;right:16px;bottom:24px;height:72px;border-radius:30px;display:flex;justify-content:space-around;align-items:center;padding:0 12px;background:linear-gradient(180deg,rgba(255,255,255,.18),rgba(255,255,255,.06));border:1px solid rgba(255,255,255,.14)}
+.tab{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:11px;font-weight:600;color:rgba(255,255,255,.55);width:72px}
+.tab svg{width:22px;height:22px}
+.gloss{position:absolute;inset:0;border-radius:inherit;background:linear-gradient(160deg,rgba(255,255,255,.35) 0%,rgba(255,255,255,0) 42%);pointer-events:none}
+.toggle{width:50px;height:30px;border-radius:999px;position:relative;flex:none;background:linear-gradient(180deg,#A7F3D0,#5EEAD4)}
+.toggle::after{content:"";position:absolute;right:3px;top:3px;width:24px;height:24px;border-radius:50%;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.3)}
+.toggle.off{background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.18)}
+.toggle.off::after{right:auto;left:2px;top:2px}
+.iconbtn{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex:none}
+.iconbtn svg{width:20px;height:20px}
+.chip{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 13px;border-radius:999px;font-size:13px;font-weight:600;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.85);white-space:nowrap}
+.chip.on{background:rgba(94,234,212,.16);border-color:rgba(94,234,212,.5);color:#5EEAD4}
+.seg{display:flex;padding:3px;border-radius:14px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.10)}
+.seg div{flex:1;height:32px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:rgba(255,255,255,.6)}
+.seg div.on{background:rgba(255,255,255,.92);color:#0B0B12}
+.field{height:46px;border-radius:14px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);display:flex;align-items:center;padding:0 14px;font-size:15px}
+.sec{font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.55);margin:0 0 8px 4px}
+.pill{font-size:11px;font-weight:700;padding:3px 8px;border-radius:999px;background:rgba(255,255,255,.08);color:rgba(255,255,255,.6);white-space:nowrap}
+.pill.warn{background:rgba(251,191,36,.16);color:#FCD34D}
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.cal i{height:12px;border-radius:4px;background:#5EEAD4}
+.cal i.p{background:rgba(94,234,212,.4)}
+.cal i.m{background:rgba(255,255,255,.10)}
+.cal i.e{background:none}
+.cal i.f{background:none;border:1px dashed rgba(255,255,255,.12)}
+.bar{height:8px;border-radius:4px;background:rgba(255,255,255,.08);flex:1;overflow:hidden}
+.bar b{display:block;height:100%;border-radius:4px;background:linear-gradient(90deg,#C4B5FD,#EC4899)}
+.steps{position:absolute;left:24px;right:24px;top:62px;display:flex;gap:6px;align-items:center}
+.steps i{flex:1;height:4px;border-radius:2px;background:rgba(255,255,255,.14)}
+.steps i.on{background:#5EEAD4}
+.steps span{font-size:12px;font-weight:600;color:rgba(255,255,255,.5);margin-left:8px;white-space:nowrap}
+.ob-title{position:absolute;left:24px;right:24px;top:94px}
+.ob-title h1{margin:0;font-size:30px;line-height:1.12;font-weight:800;letter-spacing:-.02em}
+.ob-title p{margin:8px 0 0;font-size:15px;line-height:1.4;color:rgba(255,255,255,.6)}
+.opt{position:relative;display:flex;align-items:center;gap:14px;padding:16px;border-radius:24px;background:linear-gradient(180deg,rgba(255,255,255,.10),rgba(255,255,255,.03));border:1px solid rgba(255,255,255,.12);margin-bottom:12px}
+.opt.on{background:linear-gradient(180deg,rgba(94,234,212,.16),rgba(94,234,212,.04));border-color:rgba(94,234,212,.55)}
+.radio{width:24px;height:24px;border-radius:50%;border:2px solid rgba(255,255,255,.3);flex:none}
+.opt.on .radio{border:7px solid #5EEAD4}
+.tile{height:50px;border-radius:16px;display:flex;align-items:center;gap:10px;padding:0 10px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.10);font-size:14px;font-weight:600;position:relative}
+.tile .ico{width:30px;height:30px;border-radius:10px;font-size:11px}
+.tile.on{background:rgba(94,234,212,.12);border-color:rgba(94,234,212,.5)}
+.tile.on::after{content:"";position:absolute;right:10px;top:50%;margin-top:-9px;width:18px;height:18px;border-radius:50%;background:#5EEAD4 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23064E3B' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 12.5l4 4 8-9'/%3E%3C/svg%3E") center/12px no-repeat}
+.cta{position:absolute;left:20px;right:20px;bottom:34px;height:54px;border-radius:999px;background:#F5F5F7;color:#0B0B12;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700}
+.day{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;background:rgba(255,255,255,.07);color:rgba(255,255,255,.6)}
+.day.on{background:linear-gradient(150deg,#C4B5FD,#EC4899);color:#fff}
+</style>
+</helmet>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+    <symbol id="i-pill" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.5 20.5a5 5 0 0 1-7-7l10-10a5 5 0 0 1 7 7z"/><path d="M8.5 8.5l7 7"/></symbol>
+    <symbol id="i-pen" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 2l4 4M15 5l4 4M17 7L7.5 16.5M14 4l6 6-9 9H5v-6z"/><path d="M5 19l-3 3"/></symbol>
+    <symbol id="i-chart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 6-6"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+    <symbol id="i-more" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
+    <symbol id="i-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></symbol>
+    <symbol id="i-bell" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></symbol>
+    <symbol id="i-share"viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 8l5-5 5 5"/><path d="M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></symbol>
+  </defs>
+</svg>
+
+<!-- SKJERM 5: INNSIKT -->
+<div class="screen" style="background:radial-gradient(110% 50% at 0% 0%,rgba(167,139,250,.30) 0%,rgba(167,139,250,0) 60%),radial-gradient(100% 50% at 100% 40%,rgba(94,234,212,.20) 0%,rgba(94,234,212,0) 62%),radial-gradient(100% 40% at 40% 100%,rgba(244,114,182,.18) 0%,rgba(244,114,182,0) 70%),#07070C">
+
+  <div style="position:absolute;left:24px;right:20px;top:60px;display:flex;align-items:flex-end;justify-content:space-between">
+    <div style="font-size:34px;font-weight:800;letter-spacing:-.02em">Innsikt</div>
+    <div class="glass iconbtn" style="position:static"><svg><use href="#i-share"/></svg></div>
+  </div>
+  <div class="seg" style="position:absolute;left:20px;right:20px;top:116px"><div>4 uker</div><div class="on">Siden start</div><div>År</div></div>
+
+  <!-- Vekt -->
+  <div class="glass" style="left:20px;right:20px;top:170px;height:190px;padding:16px 18px">
+    <div style="display:flex;justify-content:space-between;align-items:baseline">
+      <div><span class="eyebrow">Vekt</span><div style="font-size:26px;font-weight:800;margin-top:2px">93,8 <span class="muted" style="font-size:14px;font-weight:600">kg</span></div></div>
+      <div style="font-size:14px;font-weight:700;color:#5EEAD4">−3,4 kg på 7 uker</div>
+    </div>
+    <svg width="312" height="96" viewBox="-6 -6 322 108" style="display:block;margin-top:8px;overflow:visible">
+      <defs>
+        <linearGradient id="gArea" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5EEAD4" stop-opacity=".35"/><stop offset="1" stop-color="#5EEAD4" stop-opacity="0"/></linearGradient>
+      </defs>
+      <line x1="206.7" y1="0" x2="206.7" y2="100" stroke="rgba(255,255,255,.25)" stroke-dasharray="3 4"/>
+      <text x="210" y="8" font-size="10" font-weight="700" fill="#C4B5FD">0,5 mg</text>
+      <text x="0" y="-0" font-size="10" font-weight="700" fill="rgba(196,181,253,.7)" dy="8" dx="4">0,25 mg</text>
+      <path d="M0 16 L51.7 28 L103.3 38 L155 50 L206.7 60 L258.3 72 L310 84 L310 100 L0 100 Z" fill="url(#gArea)"/>
+      <path d="M0 16 L51.7 28 L103.3 38 L155 50 L206.7 60 L258.3 72 L310 84" fill="none" stroke="#5EEAD4" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+      <circle cx="310" cy="84" r="5" fill="#fff" stroke="#5EEAD4" stroke-width="3"/>
+    </svg>
+    <div class="muted" style="display:flex;justify-content:space-between;font-size:11px;font-weight:600;margin-top:4px"><span>Uke 1</span><span>Uke 4</span><span>Uke 7</span></div>
+  </div>
+
+  <!-- Vitaminer: kalender -->
+  <div class="glass" style="left:20px;right:20px;top:374px;height:164px;padding:16px 18px;display:flex;gap:18px">
+    <div style="width:118px;flex:none">
+      <span class="eyebrow">Vitaminer</span>
+      <div style="font-size:26px;font-weight:800;margin-top:2px">91 %</div>
+      <div class="muted" style="font-size:13px;line-height:1.35;margin-top:4px">tatt i oktober.<br>Beste rekke: 12 dager.</div>
+    </div>
+    <div style="flex:1">
+      <div class="cal muted" style="font-size:10px;font-weight:700;text-align:center;margin-bottom:6px"><span>M</span><span>T</span><span>O</span><span>T</span><span>F</span><span>L</span><span>S</span></div>
+      <div class="cal">
+        <i class="e"></i><i class="e"></i><i class="e"></i><i></i><i></i><i></i><i class="p"></i>
+        <i></i><i></i><i></i><i></i><i></i><i class="m"></i><i></i>
+        <i></i><i></i><i></i><i class="p"></i><i></i><i></i><i></i>
+        <i></i><i class="m"></i><i></i><i></i><i></i><i></i><i></i>
+        <i></i><i></i><i></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bivirkninger -->
+  <div class="glass" style="left:20px;right:20px;top:552px;height:120px;padding:16px 18px">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px">
+      <span class="eyebrow">Bivirkninger</span><span class="muted" style="font-size:12px">dager siste 30</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;font-size:13px;font-weight:600;margin-bottom:9px"><span style="width:104px">Lite matlyst</span><div class="bar"><b style="width:60%"></b></div><span style="width:18px;text-align:right">9</span></div>
+    <div style="display:flex;align-items:center;gap:10px;font-size:13px;font-weight:600;margin-bottom:9px"><span style="width:104px">Kvalme</span><div class="bar"><b style="width:33%"></b></div><span style="width:18px;text-align:right">5</span></div>
+    <div style="display:flex;align-items:center;gap:10px;font-size:13px;font-weight:600"><span style="width:104px">Forstoppelse</span><div class="bar"><b style="width:13%"></b></div><span style="width:18px;text-align:right">2</span></div>
+  </div>
+
+  <!-- Del med legen -->
+  <div class="glass" style="left:20px;right:20px;top:686px;height:50px;border-radius:20px;display:flex;align-items:center;gap:12px;padding:0 14px 0 16px">
+    <svg width="20" height="20" style="color:#C4B5FD"><use href="#i-share"/></svg>
+    <div style="flex:1;font-size:15px;font-weight:600">Lag rapport til legetimen</div>
+    <svg width="16" height="16" class="muted"><use href="#i-chev"/></svg>
+  </div>
+
+  <div class="glass tabbar">
+    <div class="tab"><svg><use href="#i-sun"/></svg>I dag</div>
+    <div class="tab"><svg><use href="#i-pill"/></svg>Vitaminer</div>
+    <div class="tab"><svg><use href="#i-pen"/></svg>Wegovy</div>
+    <div class="tab" style="color:#C4B5FD"><svg><use href="#i-chart"/></svg>Innsikt</div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview": {"width": 390, "height": 844}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>
