@@ -5,7 +5,7 @@ import { EyeOff, GripVertical, Maximize2, Minimize2, Plus, RotateCcw, SlidersHor
 import { useState, type ReactNode } from 'react'
 import type { DashboardLayout } from '../lib/settings'
 
-export type CardId = 'hero' | 'weather' | 'power' | 'plan' | 'mail' | 'notes' | 'shortcuts' | 'news'
+export type CardId = 'hero' | 'weather' | 'power' | 'plan' | 'mail' | 'notes' | 'shortcuts' | 'news' | 'kaskjerda'
 
 interface CardMeta {
   label: string
@@ -22,6 +22,7 @@ export const CARD_META: Record<CardId, CardMeta> = {
   notes: { label: 'Notatblokk', size: 'small' },
   shortcuts: { label: 'Snarveier', size: 'wide' },
   news: { label: 'Nyheter', size: 'wide' },
+  kaskjerda: { label: 'kaskjerda.no-status', size: 'small' },
 }
 
 const DEFAULT_ORDER = Object.keys(CARD_META) as CardId[]

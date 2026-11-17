@@ -1,9 +1,10 @@
 import { DndContext, MouseSensor, TouchSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, arrayMove, rectSortingStrategy, useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { Check, Pencil, Plus, Trash2, Upload, X } from 'lucide-react'
+import { Check, ExternalLink, Pencil, Plus, RefreshCw, Trash2, Upload, X } from 'lucide-react'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { uid } from '../lib/id'
+import { ago, fetchKaskjerdaStatus, KASKJERDA_STATUS_URL, statusLevel, type KaskjerdaStatus, type Level } from '../lib/kaskjerda'
 import { cheapestAndPriciest, fetchPowerPrices, formatKr, POWER_AREA, type PowerPrices } from '../lib/power'
 import type { Settings, Shortcut } from '../lib/settings'
 
@@ -90,6 +91,137 @@ export function PowerCard({ className = '' }: { className?: string }) {
         <p className="py-3 text-sm text-muted">{error ? 'Kunne ikke hente strømpriser.' : 'Henter strømpriser …'}</p>
       )}
       <p className="mt-auto hidden pt-2 text-[10px] text-faint sm:block">Spotpris inkl. mva, uten nettleie · hvakosterstrommen.no</p>
+    </BentoCard>
+  )
+}
+
+/* ---------- kaskjerda.no-status ---------- */
+
+const KS_CACHE = 'minapp:kaskjerda'
+const KS_STALE_MS = 10 * 60 * 1000 // GitHub tillater 60 oppslag i timen uten innlogging
+
+function cachedKaskjerda(): KaskjerdaStatus | null {
+  try {
+    return JSON.parse(localStorage.getItem(KS_CACHE) ?? 'null')
+  } catch {
+    return null
+  }
+}
+
+const LEVEL_COLOR: Record<Level, string> = { ok: '#22a06b', warn: '#f59e0b', bad: '#e5484d' }
+const RUN_COLOR = { success: '#22a06b', failure: '#e5484d', progress: 'var(--faint)' }
+const RUN_TEXT = { success: 'fint', failure: 'feilet', progress: 'pågår' }
+
+export function KaskjerdaCard({ className = '' }: { className?: string }) {
+  const [status, setStatus] = useState<KaskjerdaStatus | null>(cachedKaskjerda)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState(false)
+
+  const load = () => {
+    setLoading(true)
+    fetchKaskjerdaStatus()
+      .then((s) => {
+        setStatus(s)
+        setError(false)
+        try {
+          localStorage.setItem(KS_CACHE, JSON.stringify(s))
+        } catch {
+          /* full lagring er ikke kritisk */
+        }
+      })
+      .catch(() => setError(true))
+      .finally(() => setLoading(false))
+  }
+
+  useEffect(() => {
+    const tick = () => {
+      if (document.visibilityState === 'visible' && Date.now() - (cachedKaskjerda()?.fetchedAt ?? 0) > KS_STALE_MS) load()
+    }
+    tick()
+    const t = window.setInterval(tick, 60_000)
+    document.addEventListener('visibilitychange', tick)
+    return () => {
+      clearInterval(t)
+      document.removeEventListener('visibilitychange', tick)
+    }
+  }, [])
+
+  const verdict = status && statusLevel(status)
+  const iconBtn = 'grid size-7 place-items-center rounded-lg hover:bg-hover hover:text-fg'
+
+  return (
+    <BentoCard
+      title="kaskjerda.no"
+      action={
+        <>
+          <button onClick={load} disabled={loading} aria-label="Oppdater status" title="Oppdater" className={iconBtn}>
+            <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
+          </button>
+          <a href={KASKJERDA_STATUS_URL} target="_blank" rel="noopener" aria-label="Åpne statussiden" title="Åpne statussiden" className={iconBtn}>
+            <ExternalLink size={13} />
+          </a>
+        </>
+      }
+      className={`bg-[linear-gradient(135deg,rgb(20_184_166/0.16),var(--card))] ${className}`}
+    >
+      {status && verdict ? (
+        <>
+          <p className="flex items-center gap-2">
+            <span className="size-2.5 shrink-0 rounded-full" style={{ background: LEVEL_COLOR[verdict.level] }} aria-hidden />
+            <span className="text-lg leading-tight font-bold">{verdict.label}</span>
+          </p>
+          <p className="mt-0.5 truncate text-[13px] text-muted">{verdict.detail}</p>
+
+          {status.alerts?.map((a) => (
+            <a key={a.url} href={a.url} target="_blank" rel="noopener" className="mt-2 block truncate rounded-lg bg-[#e5484d]/10 px-2.5 py-1.5 text-[13px] font-medium text-[#e5484d] hover:underline">
+              {a.title}
+            </a>
+          ))}
+
+          {status.runs && status.runs.length > 0 && (
+            <div className="mt-3 flex gap-[3px]" role="img" aria-label={`Siste ${status.runs.length} kjøringer, nyeste til venstre`}>
+              {status.runs.map((r) => (
+                <a
+                  key={r.url}
+                  href={r.url}
+                  target="_blank"
+                  rel="noopener"
+                  title={`${ago(r.at)} · ${RUN_TEXT[r.result]}`}
+                  className="h-3 flex-1 rounded-[3px]"
+                  style={{ background: RUN_COLOR[r.result] }}
+                />
+              ))}
+            </div>
+          )}
+
+          <p className="mt-2 text-xs text-muted">
+            {status.events != null && (
+              <>
+                <b className="text-fg">{status.events}</b> arrangementer
+              </>
+            )}
+            {status.programAt && <> · hentet {ago(status.programAt)}</>}
+          </p>
+
+          {(status.today.length > 0 || status.next.length > 0) && (
+            <div className="mt-auto space-y-1 border-t border-glass-border pt-2.5 text-[13px]">
+              {status.today.map((t) => (
+                <p key={t.title} className="truncate">
+                  <span className="font-semibold text-accent">I dag</span> · {t.title} <span className="text-faint">({t.who})</span>
+                </p>
+              ))}
+              {status.next[0] && (
+                <p className="truncate" title={status.next[0].text}>
+                  <span className="font-semibold text-muted">Neste</span> · {status.next[0].title}
+                </p>
+              )}
+            </div>
+          )}
+          {error && <p className="mt-1 text-[11px] text-faint">Viser forrige status, fikk ikke oppdatert.</p>}
+        </>
+      ) : (
+        <p className="py-3 text-sm text-muted">{error ? 'Kunne ikke hente status.' : 'Henter status …'}</p>
+      )}
     </BentoCard>
   )
 }
