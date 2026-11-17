@@ -4,7 +4,7 @@ import { CSS } from '@dnd-kit/utilities'
 import { Check, ExternalLink, Pencil, Plus, RefreshCw, Trash2, Upload, X } from 'lucide-react'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { uid } from '../lib/id'
-import { ago, fetchKaskjerdaStatus, KASKJERDA_STATUS_URL, statusLevel, type KaskjerdaStatus, type Level } from '../lib/kaskjerda'
+import { ago, fetchKaskjerdaStatus, inDays, KASKJERDA_STATUS_URL, statusLevel, type KaskjerdaStatus, type Level } from '../lib/kaskjerda'
 import { cheapestAndPriciest, fetchPowerPrices, formatKr, POWER_AREA, type PowerPrices } from '../lib/power'
 import type { Settings, Shortcut } from '../lib/settings'
 
@@ -97,7 +97,7 @@ export function PowerCard({ className = '' }: { className?: string }) {
 
 /* ---------- kaskjerda.no-status ---------- */
 
-const KS_CACHE = 'minapp:kaskjerda'
+const KS_CACHE = 'minapp:kaskjerda-v2' // ny versjon når formen på dataene endres
 const KS_STALE_MS = 10 * 60 * 1000 // GitHub tillater 60 oppslag i timen uten innlogging
 
 function cachedKaskjerda(): KaskjerdaStatus | null {
@@ -162,7 +162,7 @@ export function KaskjerdaCard({ className = '' }: { className?: string }) {
           </a>
         </>
       }
-      className={`bg-[linear-gradient(135deg,rgb(20_184_166/0.16),var(--card))] ${className}`}
+      className={`@container bg-[linear-gradient(135deg,rgb(20_184_166/0.16),var(--card))] ${className}`}
     >
       {status && verdict ? (
         <>
@@ -201,13 +201,29 @@ export function KaskjerdaCard({ className = '' }: { className?: string }) {
               </>
             )}
             {status.programAt && <> · hentet {ago(status.programAt)}</>}
+            {status.newCount > 0 && (
+              <>
+                {' '}
+                · <span className="whitespace-nowrap"><b className="text-[#22a06b]">+{status.newCount} nye</b> siste døgn</span>
+              </>
+            )}
           </p>
+          {status.newCount > 0 && (
+            <ul className="mt-1.5 hidden space-y-0.5 text-xs text-muted @lg:block">
+              {status.newest.slice(0, Math.min(3, status.newCount)).map((e) => (
+                <li key={e.title + e.addedAt} className="truncate">
+                  <span className="text-[#22a06b]">+</span> {e.title} <span className="text-faint">· {ago(e.addedAt)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
 
-          {(status.today.length > 0 || status.next.length > 0) && (
+          {(status.upcoming.length > 0 || status.next.length > 0) && (
             <div className="mt-auto space-y-1 border-t border-glass-border pt-2.5 text-[13px]">
-              {status.today.map((t) => (
+              {status.upcoming.slice(0, 3).map((t) => (
                 <p key={t.title} className="truncate">
-                  <span className="font-semibold text-accent">I dag</span> · {t.title} <span className="text-faint">({t.who})</span>
+                  <span className={`font-semibold ${t.days === 0 ? 'text-accent' : 'text-[#f59e0b]'}`}>{inDays(t.days)}</span> · {t.title}{' '}
+                  <span className="text-faint">({t.who})</span>
                 </p>
               ))}
               {status.next[0] && (

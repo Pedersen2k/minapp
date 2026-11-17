@@ -14,9 +14,17 @@ export interface KaskjerdaStatus {
   runs: { result: RunResult; at: string; url: string }[] | null
   events: number | null
   programAt: string | null // ISO, når programmet sist ble hentet
+  newCount: number // arrangementer lagt til siste døgn
+  newest: { title: string; addedAt: string }[] // de nyeste, nyeste først
   next: { title: string; text: string }[]
-  today: { who: string; title: string }[] // punkter i planlisten med dagens dato
+  upcoming: Deadline[] // dagens punkter i planlisten, ellers de første som kommer
   fetchedAt: number
+}
+
+export interface Deadline {
+  who: string
+  title: string
+  days: number // 0 = i dag
 }
 
 export type Level = 'ok' | 'warn' | 'bad'
@@ -29,15 +37,36 @@ const json = async <T>(url: string, init?: RequestInit): Promise<T> => {
 const gh = <T>(path: string) => json<T>(API + path, { headers: { Accept: 'application/vnd.github+json' } })
 const orNull = <T>(p: Promise<T>) => p.catch(() => null)
 
-/** «17. nov.» slik datoene står i planlisten. */
-function shortDate(d = new Date()): string {
-  return `${d.getDate()}. ${d.toLocaleString('nb-NO', { month: 'short' }).replace('.', '')}.`
+const MONTHS = ['jan', 'feb', 'mar', 'apr', 'mai', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'des']
+
+/**
+ * Dager fra i dag til en dato i planlisten («17. nov.», «~7. nov.»). Faste og vage
+ * punkter («Hver mandag», «Mid-nov.») gir null. Datoer langt tilbake regnes som neste år.
+ */
+export function daysUntil(text: string, now = new Date()): number | null {
+  const m = /^~?\s*(\d{1,2})\.\s*([a-zæøå]{3})/i.exec(text.trim())
+  const month = m ? MONTHS.indexOf(m[2].toLowerCase()) : -1
+  if (!m || month < 0) return null
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const date = new Date(now.getFullYear(), month, Number(m[1]))
+  if (today.getTime() - date.getTime() > 180 * 86_400_000) date.setFullYear(date.getFullYear() + 1)
+  return Math.round((date.getTime() - today.getTime()) / 86_400_000)
+}
+
+/** Dagens punkter, eller punktene på den første datoen som kommer. */
+function upcoming(calendar: [string, string, string, string][]): Deadline[] {
+  const dated = calendar.flatMap(([when, who, title]) => {
+    const days = daysUntil(when)
+    return days != null && days >= 0 ? [{ who, title, days }] : []
+  })
+  const first = Math.min(...dated.map((d) => d.days))
+  return dated.filter((d) => d.days === first)
 }
 
 export async function fetchKaskjerdaStatus(): Promise<KaskjerdaStatus> {
   type Issue = { title: string; html_url: string; pull_request?: unknown }
   type Run = { status: string; conclusion: string | null; created_at: string; html_url: string }
-  type Events = { events: unknown[]; meta: { updatedAt: string } }
+  type Events = { events: { title: string; addedAt?: string }[]; meta: { updatedAt: string } }
   type Plan = { next: [string, string][]; calendar: [string, string, string, string][] }
 
   const [issues, runs, events, plan] = await Promise.all([
@@ -48,7 +77,8 @@ export async function fetchKaskjerdaStatus(): Promise<KaskjerdaStatus> {
   ])
   if (!issues && !runs && !events && !plan) throw new Error('Fikk ikke kontakt')
 
-  const today = shortDate()
+  const added = (events?.events ?? []).filter((e) => e.addedAt).sort((a, b) => (a.addedAt! < b.addedAt! ? 1 : -1))
+  const dayAgo = Date.now() - 86_400_000
   return {
     alerts: issues && issues.filter((i) => !i.pull_request && /tilsyn/i.test(i.title)).map((i) => ({ title: i.title, url: i.html_url })),
     runs:
@@ -60,8 +90,10 @@ export async function fetchKaskjerdaStatus(): Promise<KaskjerdaStatus> {
       })),
     events: events?.events.length ?? null,
     programAt: events?.meta.updatedAt ?? null,
+    newCount: added.filter((e) => new Date(e.addedAt!).getTime() > dayAgo).length,
+    newest: added.slice(0, 3).map((e) => ({ title: e.title, addedAt: e.addedAt! })),
     next: (plan?.next ?? []).map(([title, text]) => ({ title, text })),
-    today: (plan?.calendar ?? []).filter((c) => c[0].replace('~', '').trim() === today).map((c) => ({ who: c[1], title: c[2] })),
+    upcoming: upcoming(plan?.calendar ?? []),
     fetchedAt: Date.now(),
   }
 }
@@ -85,3 +117,5 @@ export function ago(iso: string): string {
   if (m < 1440) return `${Math.round(m / 60)} t siden`
   return `${Math.round(m / 1440)} d siden`
 }
+
+export const inDays = (n: number) => (n === 0 ? 'I dag' : n === 1 ? 'I morgen' : `Om ${n} dager`)
