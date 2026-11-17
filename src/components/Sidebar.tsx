@@ -1,7 +1,7 @@
 import { useDroppable } from '@dnd-kit/core'
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { AtSign, Bell, ChevronRight, LayoutGrid, BellOff, BellRing, CalendarDays, CheckCircle2, DatabaseBackup, Pencil, CalendarRange, Cloud, CloudOff, FilePlus, HardDrive, Inbox, LogOut, Monitor, Moon, Plus, RefreshCw, Search, Sun, Trash2 } from 'lucide-react'
+import { AtSign, Bell, ChevronRight, LayoutGrid, BellOff, BellRing, CalendarDays, CheckCircle2, DatabaseBackup, Pencil, CalendarRange, Cloud, CloudOff, HardDrive, Inbox, LogOut, Monitor, Moon, Plus, RefreshCw, Search, Sun, Trash2 } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
 import { todayISO } from '../lib/date'
 import { isInInbox } from '../lib/inbox'
@@ -11,7 +11,7 @@ import { sortByPosition } from '../lib/order'
 import { childrenOf, descendantIds, MAX_DEPTH, topLevel } from '../lib/projects'
 import { useEdit } from '../lib/ui-context'
 import { useStore } from '../lib/store'
-import type { Page, Project, View } from '../lib/types'
+import type { Project, View } from '../lib/types'
 import { ProjectIcon } from './ProjectIcon'
 import { Kbd, modKey } from './ui'
 
@@ -84,16 +84,6 @@ function SortableProject({ project, ...rest }: { project: Project } & Omit<NavIt
     <NavItem
       {...rest}
       dropHighlight={taskOver}
-      dnd={{ setNodeRef: s.setNodeRef, attributes: s.attributes, listeners: s.listeners, style: { transform: CSS.Translate.toString(s.transform), transition: s.transition, opacity: s.isDragging ? 0.4 : undefined } }}
-    />
-  )
-}
-
-function SortablePage({ page, ...rest }: { page: Page } & Omit<NavItemProps, 'dnd' | 'dropHighlight'>) {
-  const s = useSortable({ id: `nav-page:${page.id}`, data: { type: 'page', page } })
-  return (
-    <NavItem
-      {...rest}
       dnd={{ setNodeRef: s.setNodeRef, attributes: s.attributes, listeners: s.listeners, style: { transform: CSS.Translate.toString(s.transform), transition: s.transition, opacity: s.isDragging ? 0.4 : undefined } }}
     />
   )
@@ -199,7 +189,7 @@ function ProjectTreeNode({ project, depth, ctx }: { project: Project; depth: num
 }
 
 export function Sidebar({ view, onNavigate, onSearch, onBackup, top, theme, onTheme }: Props) {
-  const { tasks, projects, pages, addProject, addPage } = useStore()
+  const { tasks, projects, pages, addProject } = useStore()
   const [newProject, setNewProject] = useState<string | null>(null)
   const today = todayISO()
   const open = tasks.filter((t) => !t.done)
@@ -327,16 +317,6 @@ export function Sidebar({ view, onNavigate, onSearch, onBackup, top, theme, onTh
           </>
         )}
 
-        <SectionTitle label="Ny side" onAdd={() => onNavigate({ type: 'page', id: addPage().id })}>Sider</SectionTitle>
-        <SortableContext items={livePages.map((p) => `nav-page:${p.id}`)} strategy={verticalListSortingStrategy}>
-          {livePages.map((p) => (
-            <SortablePage key={p.id} page={p} active={is({ type: 'page', id: p.id })} icon={<span className="text-[15px]">{p.icon}</span>} label={p.title || 'Uten tittel'} onClick={() => onNavigate({ type: 'page', id: p.id })} />
-          ))}
-        </SortableContext>
-        <button onClick={() => onNavigate({ type: 'page', id: addPage().id })} className="flex w-full items-center gap-3 rounded-xl py-2 pl-3 text-left text-[14.5px] text-muted transition hover:bg-hover hover:text-accent">
-          <span className="grid w-5 place-items-center"><FilePlus size={16} /></span>
-          Ny side
-        </button>
         {(trashCount > 0 || view.type === 'trash') && (
           <NavItem active={is({ type: 'trash' })} icon={<Trash2 size={16} className="text-muted" />} label="Papirkurv" count={trashCount} onClick={() => onNavigate({ type: 'trash' })} />
         )}
