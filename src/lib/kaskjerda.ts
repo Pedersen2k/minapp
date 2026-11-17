@@ -63,8 +63,21 @@ function upcoming(calendar: [string, string, string, string][]): Deadline[] {
   return dated.filter((d) => d.days === first)
 }
 
+/**
+ * Hva varselet gjelder, fra første linje i teksten: «Sjekk kategorien på nye arrangementer».
+ * Samme regel som Edge Function kaskjerda-tilsyn bruker for oppgavetittelen.
+ */
+export function alertTitle(title: string, body: string | null): string {
+  const line = (body ?? '')
+    .split('\n')
+    .map((l) => l.replace(/[#*_`>]/g, '').trim())
+    .find((l) => l.length > 0)
+  const cut = line?.split(/\s\(|:\s/)[0].trim()
+  return cut ? (cut.length <= 90 ? cut : `${cut.slice(0, 87)}…`) : title
+}
+
 export async function fetchKaskjerdaStatus(): Promise<KaskjerdaStatus> {
-  type Issue = { title: string; html_url: string; pull_request?: unknown }
+  type Issue = { title: string; body: string | null; html_url: string; pull_request?: unknown }
   type Run = { status: string; conclusion: string | null; created_at: string; html_url: string }
   type Events = { events: { title: string; addedAt?: string }[]; meta: { updatedAt: string } }
   type Plan = { next: [string, string][]; calendar: [string, string, string, string][] }
@@ -80,7 +93,7 @@ export async function fetchKaskjerdaStatus(): Promise<KaskjerdaStatus> {
   const added = (events?.events ?? []).filter((e) => e.addedAt).sort((a, b) => (a.addedAt! < b.addedAt! ? 1 : -1))
   const dayAgo = Date.now() - 86_400_000
   return {
-    alerts: issues && issues.filter((i) => !i.pull_request && /tilsyn/i.test(i.title)).map((i) => ({ title: i.title, url: i.html_url })),
+    alerts: issues && issues.filter((i) => !i.pull_request && /tilsyn/i.test(i.title)).map((i) => ({ title: alertTitle(i.title, i.body), url: i.html_url })),
     runs:
       runs &&
       runs.workflow_runs.map((r) => ({
