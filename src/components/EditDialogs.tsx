@@ -58,13 +58,30 @@ export function ProjectDialog({ projectId, onClose, onNavigate }: { projectId: s
   const { projects, updateProject, deleteProject } = useStore()
   const project = projects.find((p) => p.id === projectId)
   const [name, setName] = useState(project?.name ?? '')
+  const [description, setDescription] = useState(project?.description ?? '')
   if (!project) return null
 
   const hasChildren = projects.some((p) => p.parentId === project.id)
   // Kan legges under et annet hovedprosjekt (ett nivå), men ikke under seg selv eller egne underprosjekter.
   const allowed = new Set(possibleParents(projects, project.id).map((p) => p.id))
   const parents = projectTree(projects).filter(({ project: p }) => allowed.has(p.id))
-  const saveName = () => name.trim() && name.trim() !== project.name && updateProject(project.id, { name: name.trim() })
+  const saveName = () => {
+    if (name.trim() && name.trim() !== project.name) updateProject(project.id, { name: name.trim() })
+    if (description.trim() !== (project.description ?? '')) updateProject(project.id, { description: description.trim() || undefined })
+  }
+  const dateInput = 'w-full min-w-0 cursor-pointer rounded-xl border border-glass-border bg-surface px-3 py-2.5 text-sm outline-none focus:border-accent'
+  const toggle = (on: boolean, label: string, hint: string, change: (v: boolean) => void) => (
+    <label className="flex cursor-pointer items-center gap-3 rounded-xl px-1 py-2">
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-medium">{label}</span>
+        <span className="block text-xs text-muted">{hint}</span>
+      </span>
+      <input type="checkbox" checked={on} onChange={(e) => change(e.target.checked)} className="peer sr-only" />
+      <span aria-hidden="true" className={`relative h-6 w-10 shrink-0 rounded-full transition peer-focus-visible:ring-2 peer-focus-visible:ring-accent ${on ? 'bg-accent' : 'bg-hover ring-1 ring-line'}`}>
+        <span className={`absolute top-0.5 size-5 rounded-full bg-white shadow transition-[left] ${on ? 'left-[18px]' : 'left-0.5'}`} />
+      </span>
+    </label>
+  )
 
   return (
     <Dialog title="Rediger prosjekt" onClose={() => { saveName(); onClose() }}>
@@ -82,6 +99,28 @@ export function ProjectDialog({ projectId, onClose, onNavigate }: { projectId: s
           placeholder="Navn på prosjekt"
           className="min-w-0 flex-1 rounded-xl border border-glass-border bg-surface px-3.5 py-2.5 text-[15px] font-semibold outline-none focus:border-accent"
         />
+      </div>
+
+      <label className={fieldLabel} htmlFor="project-description">Beskrivelse</label>
+      <textarea
+        id="project-description"
+        value={description}
+        onChange={(e) => setDescription(e.target.value)}
+        onBlur={saveName}
+        rows={2}
+        placeholder="Hva er målet med prosjektet?"
+        className="mb-5 w-full resize-none rounded-xl border border-glass-border bg-surface px-3.5 py-2.5 text-sm outline-none focus:border-accent"
+      />
+
+      <div className="mb-5 grid grid-cols-2 gap-3">
+        <div className="min-w-0">
+          <label className={fieldLabel} htmlFor="project-start">Start</label>
+          <input id="project-start" type="date" value={project.startDate ?? ''} max={project.deadline} onChange={(e) => updateProject(project.id, { startDate: e.target.value || undefined })} className={dateInput} />
+        </div>
+        <div className="min-w-0">
+          <label className={fieldLabel} htmlFor="project-deadline">Frist</label>
+          <input id="project-deadline" type="date" value={project.deadline ?? ''} min={project.startDate} onChange={(e) => updateProject(project.id, { deadline: e.target.value || undefined })} className={dateInput} />
+        </div>
       </div>
 
       <label className={fieldLabel}>Farge</label>
@@ -126,7 +165,12 @@ export function ProjectDialog({ projectId, onClose, onNavigate }: { projectId: s
         </>
       )}
 
-      <div className="mt-6 flex items-center justify-between border-t border-line pt-4">
+      <div className="mt-5 border-t border-line pt-3">
+        {toggle(!!project.pinned, 'Fest prosjektet', 'Vises øverst i «Alle prosjekter»', (v) => updateProject(project.id, { pinned: v }))}
+        {toggle(!!project.archived, 'Arkiver', 'Skjules fra sidemenyen, men beholder alle oppgaver', (v) => updateProject(project.id, { archived: v }))}
+      </div>
+
+      <div className="mt-4 flex items-center justify-between border-t border-line pt-4">
         <button
           onClick={() => {
             if (confirm(`Slette «${project.name}»${hasChildren ? ', underprosjektene' : ''} og alle oppgavene?`)) {

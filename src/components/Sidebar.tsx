@@ -95,10 +95,16 @@ function DroppableNav({ target, ...rest }: { target: 'inbox' | 'today' } & Omit<
   return <NavItem {...rest} dropHighlight={d.isOver && d.active?.data.current?.type === 'task'} dnd={{ setNodeRef: d.setNodeRef, attributes: {} }} />
 }
 
-function SectionTitle({ children, onAdd, label }: { children: ReactNode; onAdd: () => void; label: string }) {
+function SectionTitle({ children, onAdd, label, onOpen, active }: { children: ReactNode; onAdd: () => void; label: string; onOpen?: () => void; active?: boolean }) {
   return (
     <div className="mt-6 mb-1 flex items-center justify-between pr-1 pl-3">
-      <span className="text-xs font-semibold text-muted">{children}</span>
+      {onOpen ? (
+        <button onClick={onOpen} title="Se alle prosjekter" className={`flex items-center gap-1 rounded-md text-xs font-semibold transition hover:text-accent ${active ? 'text-accent' : 'text-muted'}`}>
+          {children} <ChevronRight size={12} />
+        </button>
+      ) : (
+        <span className="text-xs font-semibold text-muted">{children}</span>
+      )}
       <button onClick={onAdd} aria-label={label} title={label} className="grid size-7 place-items-center rounded-lg text-muted transition hover:bg-hover hover:text-accent">
         <Plus size={16} />
       </button>
@@ -121,7 +127,8 @@ interface TreeCtx {
 
 /** Ett nivå i prosjekttreet. Søsken kan sorteres innbyrdes. */
 function ProjectTreeLevel({ parentId, depth, ctx }: { parentId: string | null; depth: number; ctx: TreeCtx }) {
-  const items = sortByPosition(parentId ? childrenOf(ctx.projects, parentId) : topLevel(ctx.projects))
+  // Arkiverte prosjekter (med underprosjekter) vises bare under «Alle prosjekter».
+  const items = sortByPosition((parentId ? childrenOf(ctx.projects, parentId) : topLevel(ctx.projects)).filter((p) => !p.archived))
   return (
     <SortableContext items={items.map((p) => `nav-project:${p.id}`)} strategy={verticalListSortingStrategy}>
       {items.map((p) => (
@@ -132,7 +139,7 @@ function ProjectTreeLevel({ parentId, depth, ctx }: { parentId: string | null; d
 }
 
 function ProjectTreeNode({ project, depth, ctx }: { project: Project; depth: number; ctx: TreeCtx }) {
-  const hasKids = ctx.projects.some((p) => p.parentId === project.id)
+  const hasKids = ctx.projects.some((p) => p.parentId === project.id && !p.archived)
   const collapsed = ctx.collapsed.has(project.id)
   const indent = depth * 16
   const action = 'grid size-6 place-items-center rounded-md bg-surface text-muted shadow-sm hover:text-accent'
@@ -284,7 +291,7 @@ export function Sidebar({ view, onNavigate, onSearch, onBackup, top, theme, onTh
         <NavItem active={is({ type: 'calendar' })} icon={<CalendarDays size={18} className="text-[#0ea5e9]" />} label="Kalender" onClick={() => onNavigate({ type: 'calendar' })} />
         <NavItem active={is({ type: 'done' })} icon={<CheckCircle2 size={18} className="text-[#22a06b]" />} label="Fullført" onClick={() => onNavigate({ type: 'done' })} />
 
-        <SectionTitle label="Nytt prosjekt" onAdd={() => setNewProject('')}>Prosjekter</SectionTitle>
+        <SectionTitle label="Nytt prosjekt" onAdd={() => setNewProject('')} onOpen={() => onNavigate({ type: 'projects' })} active={is({ type: 'projects' })}>Prosjekter</SectionTitle>
         <ProjectTreeLevel parentId={null} depth={0} ctx={tree} />
         {newProject !== null ? (
           <input

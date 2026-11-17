@@ -12,6 +12,11 @@ create table if not exists public.projects (
   view text,
   columns jsonb not null default '[]',
   sections jsonb not null default '[]',
+  description text,
+  start_date date,
+  deadline date,
+  pinned boolean not null default false,
+  archived boolean not null default false,
   updated_at timestamptz not null default now()
 );
 

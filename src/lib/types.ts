@@ -51,6 +51,11 @@ export interface Project {
   view?: 'list' | 'board'
   columns?: Column[]
   sections?: Section[]
+  description?: string // kort beskrivelse under navnet
+  startDate?: string // YYYY-MM-DD
+  deadline?: string // YYYY-MM-DD, frist for hele prosjektet
+  pinned?: boolean // festet øverst i «Alle prosjekter»
+  archived?: boolean // skjult fra sidemenyen
 }
 
 export type BlockType = 'p' | 'h1' | 'h2' | 'todo' | 'bullet' | 'quote'
@@ -93,6 +98,7 @@ export type View =
   | { type: 'upcoming' }
   | { type: 'calendar' }
   | { type: 'done' }
+  | { type: 'projects' }
   | { type: 'project'; id: string }
   | { type: 'label'; name: string }
   | { type: 'page'; id: string }

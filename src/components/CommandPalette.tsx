@@ -1,4 +1,4 @@
-import { AtSign, LayoutGrid, CalendarDays, CalendarRange, CheckCircle2, FilePlus, Inbox, ListPlus, Moon, Search, Sun } from 'lucide-react'
+import { AtSign, LayoutGrid, CalendarDays, CalendarRange, CheckCircle2, FilePlus, FolderOpen, Inbox, ListPlus, Moon, Search, Sun } from 'lucide-react'
 import { useMemo, useState, type ReactNode } from 'react'
 import { formatDue, todayISO } from '../lib/date'
 import { allLabels, labelColor } from '../lib/labels'
@@ -38,6 +38,7 @@ export function CommandPalette({ onClose, onNavigate, onNewTask, onToggleTheme, 
       { id: 'upcoming', group: 'Gå til', label: 'Kommende', icon: <CalendarRange size={16} />, run: go({ type: 'upcoming' }) },
       { id: 'done', group: 'Gå til', label: 'Fullført', icon: <CheckCircle2 size={16} />, run: go({ type: 'done' }) },
       { id: 'calendar', group: 'Gå til', label: 'Kalender', icon: <CalendarDays size={16} />, run: go({ type: 'calendar' }) },
+      { id: 'projects', group: 'Gå til', label: 'Alle prosjekter', icon: <FolderOpen size={16} />, run: go({ type: 'projects' }) },
       ...projects.map((p) => ({ id: p.id, group: 'Prosjekter', label: p.name, icon: <ProjectIcon project={p} />, run: go({ type: 'project', id: p.id }) })),
       ...allLabels(tasks).map((l) => ({ id: `label-${l.name}`, group: 'Etiketter', label: `@${l.name}`, icon: <AtSign size={16} style={{ color: labelColor(l.name) }} />, run: go({ type: 'label', name: l.name }) })),
       ...pages.map((p) => ({ id: p.id, group: 'Sider', label: p.title || 'Uten tittel', icon: <span>{p.icon}</span>, run: go({ type: 'page', id: p.id }) })),
