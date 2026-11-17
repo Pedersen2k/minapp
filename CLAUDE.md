@@ -20,7 +20,7 @@ Kjør `npm run build` og `npm run lint` før commit.
 ## Struktur
 - `src/components/`: UI (Dashboard*, TasksView, BoardView, CalendarView, PageEditor, QuickAdd, CommandPalette ...).
 - `src/lib/`: logikk. `store.tsx` (tilstand), `sync.ts` + `supabase.ts` (synk), `parse.ts` (norsk hurtiglegging), `recurrence.ts`, `reminders.ts` + `push.ts` (web push), `settings.ts`, `kaskjerda.ts` (status for kaskjerda.no).
-- `supabase/schema.sql` er grunnskjemaet. Endringer legges som nye, nummererte filer i `supabase/migrations/` (neste er 011).
+- `supabase/schema.sql` er grunnskjemaet. Endringer legges som nye, nummererte filer i `supabase/migrations/` (neste er 012).
 - `supabase/cron.sql` kjører `send-reminders` hvert minutt og `kaskjerda-tilsyn` hvert 15. minutt. Begge bruker `CRON_SECRET`.
 - `supabase/functions/kaskjerda-tilsyn/`: åpne GitHub-issues i `Pedersen2k/skjer-i-alesund` med «tilsyn» i tittelen blir oppgaver i I dag (fast id per issue, etikett `kaskjerda`, push via `send-reminders`). Lukkede issues hukes av. Valgfrie hemmeligheter: `MINAPP_USER_ID`, `GITHUB_TOKEN`.
 
@@ -36,6 +36,8 @@ Finnes i koden: innboks, I dag, Kommende, prosjekter med underprosjekter i oppti
 Nylig jobbet med (branch `tester`): angre-melding (`UndoToast`, `undoable` i store), papirkurv for sider (migrasjon 010), sikkerhetskopi som fil og til Google Drive via Apps Script (`lib/backup.ts`, `BackupDialog`), del til appen og snarveier (manifest + `lib/launch.ts`), sidemeny som dras inn fra venstre kant (`MobileDrawer`). Forslag til mobilmeny ligger i artifacten «Minapp sveipemeny».
 
 Kaskjerda.no (17. nov., i main): kortet «kaskjerda.no» i Min dag (`KaskjerdaCard` i `DashboardCards.tsx`) viser samme vurdering som kaskjerda.no/status/ (varsler, siste 12 kjøringer, programmets alder), nye arrangementer siste døgn (titler når kortet er bredt) og dagens eller neste frist fra planlisten. Varsler om tilsyn blir dessuten oppgaver via `kaskjerda-tilsyn` og vises i «Dagens plan», ikke i kortet (bevisst valg). Opprettelse av oppgave er ikke sett i praksis ennå, bare kjøring uten åpne varsler. Mulig neste steg: besøkstall fra GoatCounter (krever nøkkel på serversiden).
+
+Prosjekter (17. nov.): ny prosjektvisning i `ProjectView.tsx` (hode med fremdriftsring, tall, tidslinje mot frist, «Neste opp», underprosjektkort, kategorier som kort, faner på mobil) og ny visning «Alle prosjekter» (`#/projects`, `ProjectsOverview`). Prosjekter har fått beskrivelse, start, frist, festet og arkivert (migrasjon 011). Synken sender de nye kolonnene bare når feltene er brukt. Designet ligger i artifacten «Minapp prosjekter».
 
 ## Neste steg
 Fyll inn ved start av ny økt. Forslag: avklar designretning fra artifacten, deretter polering av mobilvisning.

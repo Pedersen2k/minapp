@@ -128,10 +128,12 @@ function Workspace() {
         ? projects.find((p) => p.id === view.id)?.name ?? ''
         : view.type === 'label'
           ? `@${view.name}`
-          : { inbox: 'Innboks', today: 'I dag', upcoming: 'Kommende', calendar: 'Kalender', done: 'Fullført', dashboard: 'Min dag', trash: 'Papirkurv' }[view.type]
+          : { inbox: 'Innboks', today: 'I dag', upcoming: 'Kommende', calendar: 'Kalender', done: 'Fullført', dashboard: 'Min dag', trash: 'Papirkurv', projects: 'Prosjekter' }[view.type]
 
   // Tavle og kalender trenger bredden; lister og sider leses best smalt.
   const wide = (view.type === 'project' && projects.find((p) => p.id === view.id)?.view === 'board') || view.type === 'calendar' || view.type === 'dashboard'
+  // Prosjektsidene har kort i rutenett og trenger mer plass enn en vanlig liste.
+  const medium = view.type === 'project' || view.type === 'projects'
 
   const quickAddDefaults =
     view.type === 'project' ? { projectId: view.id } : view.type === 'today' || view.type === 'dashboard' ? { due: todayISO() } : undefined
@@ -163,7 +165,7 @@ function Workspace() {
           </header>
 
           <div className="flex-1 overflow-y-auto">
-            <div className={`mx-auto w-full px-4 pt-4 pb-36 md:px-12 md:pt-14 md:pb-24 ${wide ? 'max-w-[1400px]' : 'max-w-[720px]'}`}>
+            <div className={`mx-auto w-full px-4 pt-4 pb-36 md:px-12 md:pt-14 md:pb-24 ${wide ? 'max-w-[1400px]' : medium ? 'max-w-[1120px]' : 'max-w-[720px]'}`}>
               {view.type === 'page' ? (
                 page ? (
                   <PageEditor key={page.id} page={page} onDeleted={() => go({ type: 'today' })} />

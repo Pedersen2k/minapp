@@ -35,6 +35,18 @@ const REMIND_BACKFILL_KEY = 'minapp:remind-backfill'
 const iso = (ms: number) => new Date(ms).toISOString()
 const ms = (s: unknown) => new Date(s as string).getTime()
 
+// Kolonnene fra migrasjon 011 sendes bare når prosjektet har brukt feltet, så synken virker
+// også mot en database som ikke har fått migrasjonen ennå.
+function projectExtras(p: Project): Row {
+  const row: Row = {}
+  if ('description' in p) row.description = p.description || null
+  if ('startDate' in p) row.start_date = p.startDate || null
+  if ('deadline' in p) row.deadline = p.deadline || null
+  if ('pinned' in p) row.pinned = !!p.pinned
+  if ('archived' in p) row.archived = !!p.archived
+  return row
+}
+
 function toRow(table: Table, item: Item): Row {
   const now = new Date().toISOString()
   if (table === 'labels') {
@@ -53,6 +65,7 @@ function toRow(table: Table, item: Item): Row {
       view: p.view ?? null,
       columns: p.columns ?? [],
       sections: p.sections ?? [],
+      ...projectExtras(p),
       updated_at: now,
     }
   }
@@ -94,6 +107,11 @@ function fromRow(table: Table, r: Row): Item {
     if (r.view) p.view = r.view as Project['view']
     if (Array.isArray(r.columns) && r.columns.length > 0) p.columns = r.columns as Project['columns']
     if (Array.isArray(r.sections) && r.sections.length > 0) p.sections = r.sections as Project['sections']
+    if (r.description) p.description = r.description as string
+    if (r.start_date) p.startDate = r.start_date as string
+    if (r.deadline) p.deadline = r.deadline as string
+    if (r.pinned) p.pinned = true
+    if (r.archived) p.archived = true
     return p
   }
   if (table === 'tasks') {
