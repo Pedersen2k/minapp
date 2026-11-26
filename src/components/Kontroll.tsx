@@ -1,8 +1,9 @@
-import { ExternalLink, RefreshCw } from 'lucide-react'
-import type { ReactNode } from 'react'
+import { ExternalLink, RefreshCw, SlidersHorizontal, X } from 'lucide-react'
+import { useState, type ReactNode } from 'react'
 import { countryName, pageLabel, useBesok, weekChange, type Besok, type BesokState } from '../lib/besok'
 import { ago, statusLevel, type KaskjerdaStatus, type Level } from '../lib/kaskjerda'
 import { dayLabels, doneByDay, heatWeeks, useKaskjerda, usePower } from '../lib/kontroll'
+import { DEFAULT_THRESHOLDS, evaluateSignals, type ContextFilter, type Signal, type Thresholds } from '../lib/kontekst'
 import { cheapestAndPriciest, formatKr } from '../lib/power'
 import type { Task } from '../lib/types'
 import { AreaChart, Bars, HeatGrid, Ring, Spark } from './charts'
@@ -19,6 +20,11 @@ interface Props {
   greeting: string
   dateText: string
   hint: string
+  context: ContextFilter
+  onContext: (f: ContextFilter) => void
+  hasJobProjects: boolean
+  thresholds?: Thresholds
+  onThresholds: (t: Thresholds) => void
 }
 
 const TONE: Record<Level, string> = { ok: 'var(--k-good)', warn: 'var(--k-warn)', bad: 'var(--k-bad)' }
@@ -46,122 +52,173 @@ export function Kontroll(props: Props) {
   const okShare = finished.length ? finished.filter((r) => r.result === 'success').length / finished.length : null
   const verdict = ks.status ? statusLevel(ks.status) : null
   const alertCount = ks.status?.alerts?.length ?? null
-  const attention = (alertCount ?? 0) + (runs?.[0]?.result === 'failure' ? 1 : 0)
+  // Jobb viser bare det som hører til jobb: kaskjerda.no, besøk og strøm er private kilder.
+  const jobb = props.context === 'jobb'
+  const signals = evaluateSignals({ thresholds: props.thresholds, visits: jobb ? null : visits, runs: jobb ? null : runs, overdue })
+  const lastRunCovered = signals.some((x) => x.id === 'kjoringer') // da er «siste kjøring feilet» allerede med som varsel
+  const attention = jobb ? signals.length : (alertCount ?? 0) + (!lastRunCovered && runs?.[0]?.result === 'failure' ? 1 : 0) + signals.length
+  const [editing, setEditing] = useState(false)
   const priceNow = power.prices?.hours[hour]
 
-  const alerts = <AlertList status={ks.status} error={ks.error} />
+  const alerts = <AlertList status={ks.status} error={ks.error} signals={signals} github={!jobb} />
   const powerBars = power.prices && (
     <Bars values={power.prices.hours} highlight={hour} w={260} h={74} xLabels={HOURS} color="var(--k-c2)" label="Strømpris per time i dag" />
   )
   const heat = <HeatGrid weeks={heatWeeks(tasks, 26)} cell={11} label="Fullførte oppgaver per dag, siste 26 uker" />
   const runStrip = <RunStrip status={ks.status} />
 
+  const kpiTasks = <Kpi title="Oppgaver i dag" value={String(doneToday)} unit={`/ ${total}`} note={overdue ? `${overdue} forfalt` : 'Ingen forfalte'} tone={overdue ? 'bad' : 'ok'} spark={done14} sparkColor="var(--k-c3)" />
+  const kpiWeek = <Kpi title="Denne uka" value={String(weekNow)} unit="fullført" note={weekPrev ? `${weekNow >= weekPrev ? '▲' : '▼'} ${Math.abs(weekNow - weekPrev)} mot uka før` : 'Første uke'} tone={weekNow >= weekPrev ? 'ok' : 'warn'} />
+  const kpiMail = <Kpi title="Uleste e-post" value={unread === null ? '–' : String(unread)} note={unread === null ? 'Ikke koblet til' : 'i innboksen'} tone="ok" />
+  const kpiOverdue = <Kpi title="Forfalt" value={String(overdue)} note={overdue ? 'frist passert' : 'Ingen forfalte'} tone={overdue ? 'bad' : 'ok'} hot={overdue > 0} />
+  const heading = (size: string) => (
+    <div className="flex flex-wrap items-end justify-between gap-3 px-1">
+      <div>
+        <p className="text-sm font-medium text-muted first-letter:uppercase">{props.dateText}</p>
+        <h1 className={`${size} leading-tight font-bold tracking-[-0.03em]`}>{props.greeting}</h1>
+      </div>
+    </div>
+  )
+  const controls = (
+    <div className="flex flex-wrap items-center gap-2">
+      <ContextChips value={props.context} onChange={props.onContext} />
+      <button onClick={() => setEditing(true)} aria-label="Terskler for varsler" title="Terskler for varsler" className="grid size-8 place-items-center rounded-xl border border-glass-border bg-card text-muted hover:bg-card-hover hover:text-fg">
+        <SlidersHorizontal size={14} />
+      </button>
+      {!jobb && verdict && <Pill tone={verdict.level}>{verdict.label}</Pill>}
+      {attention > 0 && <Pill tone="warn">{attention} trenger deg</Pill>}
+    </div>
+  )
+  const noJobb = jobb && !props.hasJobProjects && (
+    <div className="k-card text-sm text-muted">Ingen prosjekter er merket som jobb ennå. Åpne et prosjekt, velg «Rediger» og sett «Hører til» til Jobb, så dukker oppgavene opp her.</div>
+  )
+  const signalPanel = (
+    <Panel title="Varsler" hot={attention > 0} action={jobb ? undefined : <RefreshBtn loading={ks.loading} onClick={ks.reload} />}>
+      {alerts}
+    </Panel>
+  )
+
   return (
     <div className="kontroll">
       {/* ---------- PC: Cockpit ---------- */}
       <div className="hidden flex-col gap-3 md:flex">
-        <div className="flex flex-wrap items-end justify-between gap-3 px-1">
-          <div>
-            <p className="text-sm font-medium text-muted first-letter:uppercase">{props.dateText}</p>
-            <h1 className="text-[34px] leading-tight font-bold tracking-[-0.03em]">{props.greeting}</h1>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            {verdict && <Pill tone={verdict.level}>{verdict.label}</Pill>}
-            {attention > 0 && <Pill tone="warn">{attention} trenger deg</Pill>}
-          </div>
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          {heading('text-[34px]')}
+          {controls}
         </div>
+        {noJobb}
 
-        <div className="grid grid-cols-3 gap-3 xl:grid-cols-6">
-          <Kpi title="Åpne varsler" value={alertCount === null ? '–' : String(alertCount)} note={ks.error ? 'Fikk ikke svar' : 'kaskjerda.no'} tone={alertCount ? 'warn' : 'ok'} hot={!!alertCount} />
-          <Kpi title="Kjøringer ok" value={okShare === null ? '–' : String(Math.round(okShare * 100))} unit={okShare === null ? '' : '%'} note={finished.length ? `${finished.filter((r) => r.result === 'success').length} av ${finished.length}` : 'Ingen data'} tone={okShare === null || okShare === 1 ? 'ok' : 'warn'} spark={runs?.length ? [...runs].reverse().map((r) => (r.result === 'success' ? 2 : r.result === 'failure' ? 0 : 1)) : undefined} sparkColor="var(--k-good)" />
-          <Kpi title="Oppgaver i dag" value={String(doneToday)} unit={`/ ${total}`} note={overdue ? `${overdue} forfalt` : 'Ingen forfalte'} tone={overdue ? 'bad' : 'ok'} spark={done14} sparkColor="var(--k-c3)" />
-          <Kpi
-            title="Besøk 7 d"
-            value={visits ? String(visits.now) : '–'}
-            note={visits ? (visits.pct === null ? 'Ingen uke å sammenligne med' : `${visits.pct >= 0 ? '▲' : '▼'} ${Math.abs(visits.pct)} % mot uka før`) : BESOK_NOTE[besok.state]}
-            tone={visits && visits.pct !== null && visits.pct < -30 ? 'bad' : 'ok'}
-            spark={b?.views.slice(-14)}
-            sparkColor="var(--k-c1)"
-          />
-          <Kpi title="Uleste e-post" value={unread === null ? '–' : String(unread)} note={unread === null ? 'Ikke koblet til' : 'i innboksen'} tone="ok" />
-          <Kpi title="Strøm nå" value={priceNow === undefined ? '–' : formatKr(priceNow)} unit="kr" note={power.prices ? `dyrest kl. ${String(cheapestAndPriciest(power.prices.hours).dear).padStart(2, '0')}` : power.error ? 'Utilgjengelig' : 'Henter …'} tone="ok" spark={power.prices?.hours} sparkColor="var(--k-c2)" />
-        </div>
-
-        <div className="grid gap-3 xl:grid-cols-[2.4fr_1fr]">
-          {b ? (
-            <Panel title="Sidevisninger kaskjerda.no · 28 dager" action={<span className="k-sub">i dag så langt: {b.today}</span>}>
-              <AreaChart values={b.views} w={760} h={250} xLabels={dayLabels(b.views.length, 1)} flags={peakFlag(b.views)} label="Sidevisninger per dag, siste 28 dager" />
-            </Panel>
-          ) : (
-            <Panel title="Fullførte oppgaver · 28 dager" action={<span className="k-sub">{sum(done28)} totalt</span>}>
-              <AreaChart values={done28} w={760} h={250} xLabels={dayLabels(28)} label="Fullførte oppgaver per dag, siste 28 dager" />
-            </Panel>
-          )}
-          <Panel title="GitHub · varsler" hot={attention > 0} action={<RefreshBtn loading={ks.loading} onClick={ks.reload} />}>
-            {alerts}
-          </Panel>
-        </div>
-
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[1.35fr_1fr_1fr_1.25fr]">
-          <Panel title="Dagens plan">
-            {props.planList}
-          </Panel>
-          <Panel title="Kjøringer" action={<span className="k-sub">siste 12</span>}>
-            {runStrip}
-            <KsFacts status={ks.status} />
-          </Panel>
-          <Panel title="Strøm i dag" action={<span className="k-sub">kr/kWh</span>}>
-            {powerBars ?? <p className="text-sm text-muted">{power.error ? 'Kunne ikke hente strømpriser.' : 'Henter strømpriser …'}</p>}
-          </Panel>
-          <Panel title="Aktivitet" action={<span className="k-sub">26 uker</span>}>
-            {heat}
-          </Panel>
-        </div>
-
-        {besok.state === 'ready' && b ? (
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-            <Panel title="Fullførte oppgaver · 28 dager" action={<span className="k-sub">{sum(done28)} totalt</span>}>
-              <AreaChart values={done28} w={420} h={170} xLabels={dayLabels(28)} color="var(--k-c3)" label="Fullførte oppgaver per dag, siste 28 dager" />
-            </Panel>
-            <Panel title="Mest leste sider" action={<span className="k-sub">28 d</span>}>
-              <BesokFacts b={b} />
-            </Panel>
-            <Panel title="Besøk per time" action={<span className="k-sub">norsk tid</span>}>
-              <Bars values={b.hourly} highlight={b.hourly.indexOf(Math.max(...b.hourly))} w={420} h={150} xLabels={HOURS} label="Besøk per time på døgnet, siste 28 dager" />
-            </Panel>
-          </div>
+        {jobb ? (
+          <>
+            <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+              {kpiTasks}
+              {kpiOverdue}
+              {kpiWeek}
+              {kpiMail}
+            </div>
+            <div className={`grid gap-3 ${signals.length ? 'xl:grid-cols-[2.4fr_1fr]' : ''}`}>
+              <Panel title="Fullførte oppgaver · 28 dager" action={<span className="k-sub">{sum(done28)} totalt</span>}>
+                <AreaChart values={done28} w={760} h={250} xLabels={dayLabels(28)} label="Fullførte oppgaver per dag, siste 28 dager" />
+              </Panel>
+              {signals.length > 0 && signalPanel}
+            </div>
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[1.35fr_1fr]">
+              <Panel title="Dagens plan">{props.planList}</Panel>
+              <Panel title="Aktivitet" action={<span className="k-sub">26 uker</span>}>
+                {heat}
+              </Panel>
+            </div>
+          </>
         ) : (
-          <BesokHint state={besok.state} message={besok.message} />
+          <>
+            <div className="grid grid-cols-3 gap-3 xl:grid-cols-6">
+              <Kpi title="Åpne varsler" value={alertCount === null ? '–' : String(alertCount)} note={ks.error ? 'Fikk ikke svar' : 'kaskjerda.no'} tone={alertCount ? 'warn' : 'ok'} hot={!!alertCount} />
+              <Kpi title="Kjøringer ok" value={okShare === null ? '–' : String(Math.round(okShare * 100))} unit={okShare === null ? '' : '%'} note={finished.length ? `${finished.filter((r) => r.result === 'success').length} av ${finished.length}` : 'Ingen data'} tone={okShare === null || okShare === 1 ? 'ok' : 'warn'} spark={runs?.length ? [...runs].reverse().map((r) => (r.result === 'success' ? 2 : r.result === 'failure' ? 0 : 1)) : undefined} sparkColor="var(--k-good)" />
+              {kpiTasks}
+              <Kpi
+                title="Besøk 7 d"
+                value={visits ? String(visits.now) : '–'}
+                note={visits ? (visits.pct === null ? 'Ingen uke å sammenligne med' : `${visits.pct >= 0 ? '▲' : '▼'} ${Math.abs(visits.pct)} % mot uka før`) : BESOK_NOTE[besok.state]}
+                tone={visits && visits.pct !== null && visits.pct < -30 ? 'bad' : 'ok'}
+                spark={b?.views.slice(-14)}
+                sparkColor="var(--k-c1)"
+              />
+              {kpiMail}
+              <Kpi title="Strøm nå" value={priceNow === undefined ? '–' : formatKr(priceNow)} unit="kr" note={power.prices ? `dyrest kl. ${String(cheapestAndPriciest(power.prices.hours).dear).padStart(2, '0')}` : power.error ? 'Utilgjengelig' : 'Henter …'} tone="ok" spark={power.prices?.hours} sparkColor="var(--k-c2)" />
+            </div>
+
+            <div className="grid gap-3 xl:grid-cols-[2.4fr_1fr]">
+              {b ? (
+                <Panel title="Sidevisninger kaskjerda.no · 28 dager" action={<span className="k-sub">i dag så langt: {b.today}</span>}>
+                  <AreaChart values={b.views} w={760} h={250} xLabels={dayLabels(b.views.length, 1)} flags={peakFlag(b.views)} label="Sidevisninger per dag, siste 28 dager" />
+                </Panel>
+              ) : (
+                <Panel title="Fullførte oppgaver · 28 dager" action={<span className="k-sub">{sum(done28)} totalt</span>}>
+                  <AreaChart values={done28} w={760} h={250} xLabels={dayLabels(28)} label="Fullførte oppgaver per dag, siste 28 dager" />
+                </Panel>
+              )}
+              {signalPanel}
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[1.35fr_1fr_1fr_1.25fr]">
+              <Panel title="Dagens plan">{props.planList}</Panel>
+              <Panel title="Kjøringer" action={<span className="k-sub">siste 12</span>}>
+                {runStrip}
+                <KsFacts status={ks.status} />
+              </Panel>
+              <Panel title="Strøm i dag" action={<span className="k-sub">kr/kWh</span>}>
+                {powerBars ?? <p className="text-sm text-muted">{power.error ? 'Kunne ikke hente strømpriser.' : 'Henter strømpriser …'}</p>}
+              </Panel>
+              <Panel title="Aktivitet" action={<span className="k-sub">26 uker</span>}>
+                {heat}
+              </Panel>
+            </div>
+
+            {besok.state === 'ready' && b ? (
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                <Panel title="Fullførte oppgaver · 28 dager" action={<span className="k-sub">{sum(done28)} totalt</span>}>
+                  <AreaChart values={done28} w={420} h={170} xLabels={dayLabels(28)} color="var(--k-c3)" label="Fullførte oppgaver per dag, siste 28 dager" />
+                </Panel>
+                <Panel title="Mest leste sider" action={<span className="k-sub">28 d</span>}>
+                  <BesokFacts b={b} />
+                </Panel>
+                <Panel title="Besøk per time" action={<span className="k-sub">norsk tid</span>}>
+                  <Bars values={b.hourly} highlight={b.hourly.indexOf(Math.max(...b.hourly))} w={420} h={150} xLabels={HOURS} label="Besøk per time på døgnet, siste 28 dager" />
+                </Panel>
+              </div>
+            ) : (
+              <BesokHint state={besok.state} message={besok.message} />
+            )}
+          </>
         )}
       </div>
 
       {/* ---------- Mobil: Radar ---------- */}
       <div className="flex flex-col gap-3 md:hidden">
-        <div className="px-1">
-          <p className="text-sm font-medium text-muted first-letter:uppercase">{props.dateText}</p>
-          <h1 className="text-[30px] leading-tight font-bold tracking-[-0.03em]">{props.greeting}</h1>
-          <p className="mt-0.5 text-sm text-muted">{attention > 0 ? `${attention} ting trenger deg` : props.hint}</p>
+        <div className="flex flex-col gap-2">
+          {heading('text-[30px]')}
+          {controls}
+          <p className="px-1 text-sm text-muted">{attention > 0 ? `${attention} ting trenger deg` : props.hint}</p>
         </div>
+        {noJobb}
         <div className="grid grid-cols-2 gap-3">
-          <RingCard share={okShare ?? 0} text={okShare === null ? '–' : `${Math.round(okShare * 100)}%`} color="var(--k-c2)" title="kaskjerda.no" note={verdict?.label ?? 'Henter …'} />
+          {!jobb && <RingCard share={okShare ?? 0} text={okShare === null ? '–' : `${Math.round(okShare * 100)}%`} color="var(--k-c2)" title="kaskjerda.no" note={verdict?.label ?? 'Henter …'} />}
           <RingCard share={total ? doneToday / total : 0} text={`${doneToday}/${total}`} color="var(--k-c1)" title="Oppgaver i dag" note={overdue ? `${overdue} forfalt` : 'Ingen forfalte'} />
-          <RingCard share={priceNow !== undefined && power.prices ? priceNow / Math.max(...power.prices.hours) : 0} text={priceNow === undefined ? '–' : formatKr(priceNow)} color="var(--k-c3)" title="Strøm nå" note="kr/kWh" />
-          {visits ? (
+          {!jobb && <RingCard share={priceNow !== undefined && power.prices ? priceNow / Math.max(...power.prices.hours) : 0} text={priceNow === undefined ? '–' : formatKr(priceNow)} color="var(--k-c3)" title="Strøm nå" note="kr/kWh" />}
+          {visits && !jobb ? (
             <RingCard share={visits.now / Math.max(1, visits.now, visits.prev)} text={String(visits.now)} color="var(--k-c1)" title="Besøk 7 d" note={visits.pct === null ? 'kaskjerda.no' : `${visits.pct >= 0 ? '▲' : '▼'} ${Math.abs(visits.pct)} % mot uka før`} />
           ) : (
             <RingCard share={weekNow / Math.max(1, weekNow, weekPrev)} text={String(weekNow)} color="var(--k-c1)" title="Denne uka" note={weekPrev ? `uka før: ${weekPrev}` : 'fullført'} />
           )}
         </div>
-        <Panel title="GitHub · varsler" hot={attention > 0} action={<RefreshBtn loading={ks.loading} onClick={ks.reload} />}>
-          {alerts}
-        </Panel>
-        {b && (
+        {(!jobb || signals.length > 0) && signalPanel}
+        {b && !jobb && (
           <Panel title="Sidevisninger · 28 dager" action={<span className="k-sub">i dag: {b.today}</span>}>
             <AreaChart values={b.views} w={300} h={130} xLabels={[dayLabels(b.views.length, 1)[0], dayLabels(b.views.length, 1)[4]]} flags={peakFlag(b.views)} label="Sidevisninger per dag, siste 28 dager" />
           </Panel>
         )}
         <Panel title="Dagens plan">{props.planList}</Panel>
-        {b && (
+        {b && !jobb && (
           <Panel title="Mest leste sider" action={<span className="k-sub">28 d</span>}>
             <BesokFacts b={b} compact />
           </Panel>
@@ -170,11 +227,15 @@ export function Kontroll(props: Props) {
           <AreaChart values={done28} w={300} h={130} xLabels={[dayLabels(28)[0], dayLabels(28)[4]]} label="Fullførte oppgaver per dag, siste 28 dager" />
         </Panel>
         <Panel title="Aktivitet · 26 uker">{heat}</Panel>
-        <Panel title="Strøm i dag" action={<span className="k-sub">kr/kWh</span>}>
-          {powerBars ?? <p className="text-sm text-muted">{power.error ? 'Kunne ikke hente strømpriser.' : 'Henter strømpriser …'}</p>}
-        </Panel>
+        {!jobb && (
+          <Panel title="Strøm i dag" action={<span className="k-sub">kr/kWh</span>}>
+            {powerBars ?? <p className="text-sm text-muted">{power.error ? 'Kunne ikke hente strømpriser.' : 'Henter strømpriser …'}</p>}
+          </Panel>
+        )}
         {unread !== null && <p className="px-1 text-center text-xs text-faint">{unread} uleste e-poster</p>}
       </div>
+
+      {editing && <ThresholdDialog thresholds={props.thresholds} onSave={props.onThresholds} onClose={() => setEditing(false)} />}
     </div>
   )
 }
@@ -242,14 +303,17 @@ function RefreshBtn({ loading, onClick }: { loading: boolean; onClick: () => voi
   )
 }
 
-function AlertList({ status, error }: { status: KaskjerdaStatus | null; error: boolean }) {
-  if (!status) return <p className="text-sm text-muted">{error ? 'Fikk ikke kontakt med GitHub.' : 'Henter varsler …'}</p>
-  const rows: { level: Level; title: string; meta: string; url?: string }[] = []
-  for (const a of status.alerts ?? []) rows.push({ level: 'warn', title: a.title, meta: 'skjer-i-alesund · åpent', url: a.url })
-  const last = status.runs?.[0]
-  if (last?.result === 'failure') rows.push({ level: 'bad', title: 'Siste kjøring feilet', meta: `oppdater.yml · ${ago(last.at)}`, url: last.url })
-  if (status.alerts === null) rows.push({ level: 'warn', title: 'Fikk ikke hente varsler fra GitHub', meta: 'prøver igjen automatisk' })
-  if (!rows.length) rows.push({ level: 'ok', title: 'Ingen åpne varsler', meta: statusLevel(status).detail })
+function AlertList({ status, error, signals, github }: { status: KaskjerdaStatus | null; error: boolean; signals: Signal[]; github: boolean }) {
+  const rows: { level: Level; title: string; meta: string; url?: string }[] = signals.map((x) => ({ level: x.level, title: x.title, meta: x.meta }))
+  if (github) {
+    if (!status && !rows.length) return <p className="text-sm text-muted">{error ? 'Fikk ikke kontakt med GitHub.' : 'Henter varsler …'}</p>
+    for (const a of status?.alerts ?? []) rows.push({ level: 'warn', title: a.title, meta: 'skjer-i-alesund · åpent', url: a.url })
+    const last = status?.runs?.[0]
+    if (last?.result === 'failure' && !signals.some((x) => x.id === 'kjoringer')) rows.push({ level: 'bad', title: 'Siste kjøring feilet', meta: `oppdater.yml · ${ago(last.at)}`, url: last.url })
+    if (status && status.alerts === null) rows.push({ level: 'warn', title: 'Fikk ikke hente varsler fra GitHub', meta: 'prøver igjen automatisk' })
+    if (status && !rows.length) rows.push({ level: 'ok', title: 'Ingen åpne varsler', meta: statusLevel(status).detail })
+  }
+  if (!rows.length) rows.push({ level: 'ok', title: 'Ingen varsler', meta: 'Alt innenfor tersklene' })
   return (
     <ul>
       {rows.map((r, i) => {
@@ -277,6 +341,63 @@ function AlertList({ status, error }: { status: KaskjerdaStatus | null; error: b
         )
       })}
     </ul>
+  )
+}
+
+function ContextChips({ value, onChange }: { value: ContextFilter; onChange: (f: ContextFilter) => void }) {
+  return (
+    <div role="group" aria-label="Vis oppgaver fra" className="flex gap-0.5 rounded-xl border border-glass-border bg-card p-0.5 text-[13px] font-semibold">
+      {(['alt', 'jobb', 'privat'] as const).map((f) => (
+        <button key={f} onClick={() => onChange(f)} aria-pressed={value === f} className={`rounded-lg px-3 py-1 transition ${value === f ? 'bg-accent text-white' : 'text-muted hover:text-fg'}`}>
+          {f === 'alt' ? 'Alt' : f === 'jobb' ? 'Jobb' : 'Privat'}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+/** Terskler som gir varsler. 0 slår en terskel av. */
+function ThresholdDialog({ thresholds, onSave, onClose }: { thresholds?: Thresholds; onSave: (t: Thresholds) => void; onClose: () => void }) {
+  const t = { ...DEFAULT_THRESHOLDS, ...thresholds }
+  const [besokFall, setBesokFall] = useState(String(t.besokFall))
+  const [kjoringerFeil, setKjoringerFeil] = useState(String(t.kjoringerFeil))
+  const [forfalt, setForfalt] = useState(String(t.forfalt))
+  const num = (v: string) => Math.max(0, Math.round(Number(v) || 0))
+  const field = 'w-24 rounded-xl border border-glass-border bg-surface px-3 py-2 text-right text-sm outline-none focus:border-accent'
+  const row = (id: string, label: string, hint: string, value: string, set: (v: string) => void, unit: string) => (
+    <div className="flex items-center gap-3 py-2">
+      <label htmlFor={id} className="min-w-0 flex-1">
+        <span className="block text-sm font-medium">{label}</span>
+        <span className="block text-xs text-muted">{hint}</span>
+      </label>
+      <input id={id} type="number" min={0} inputMode="numeric" value={value} onChange={(e) => set(e.target.value)} className={field} />
+      <span className="w-8 text-xs text-muted">{unit}</span>
+    </div>
+  )
+  return (
+    <div className="animate-fade fixed inset-0 z-50 flex items-end justify-center bg-black/25 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] md:items-center" onMouseDown={onClose}>
+      <div role="dialog" aria-label="Terskler for varsler" onMouseDown={(e) => e.stopPropagation()} className="glass-strong animate-rise flex max-h-[85dvh] w-full max-w-md flex-col rounded-[28px] p-5">
+        <div className="mb-1 flex items-center justify-between">
+          <h2 className="text-lg font-bold tracking-tight">Terskler for varsler</h2>
+          <button onClick={onClose} aria-label="Lukk" className="grid size-8 place-items-center rounded-lg text-muted hover:bg-hover hover:text-fg">
+            <X size={18} />
+          </button>
+        </div>
+        <p className="mb-3 text-sm text-muted">Når en terskel nås, dukker det opp et varsel i «Min dag». Skriv 0 for å slå en terskel av.</p>
+        {row('t-besok', 'Besøket faller', 'Siste 7 dager mot de 7 før', besokFall, setBesokFall, '%')}
+        {row('t-kjoringer', 'Kjøringer feiler', 'Mislykkede kjøringer på rad', kjoringerFeil, setKjoringerFeil, 'stk')}
+        {row('t-forfalt', 'Forfalte oppgaver', 'Antall med frist som er passert', forfalt, setForfalt, 'stk')}
+        <div className="mt-4 flex justify-end gap-2 border-t border-line pt-4">
+          <button onClick={() => { onSave({}); onClose() }} className="rounded-xl px-3 py-2 text-sm font-medium text-muted hover:bg-hover">Tilbakestill</button>
+          <button
+            onClick={() => { onSave({ besokFall: num(besokFall), kjoringerFeil: num(kjoringerFeil), forfalt: num(forfalt) }); onClose() }}
+            className="bg-accent-gradient rounded-xl px-5 py-2 text-sm font-semibold text-white"
+          >
+            Lagre
+          </button>
+        </div>
+      </div>
+    </div>
   )
 }
 

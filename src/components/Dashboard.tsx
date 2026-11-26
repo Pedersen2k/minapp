@@ -2,6 +2,7 @@ import { Bell, Check, Cloud, CloudFog, CloudLightning, CloudRain, CloudSnow, Clo
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import scriptCode from '../../integrations/google-apps-script/Code.gs?raw'
 import { formatDue, formatLong, todayISO } from '../lib/date'
+import { filterTasks, hasJobProjects } from '../lib/kontekst'
 import { byTaskOrder } from '../lib/order'
 import { DEFAULT_WEATHER, useSettings, type Settings } from '../lib/settings'
 import { useStore } from '../lib/store'
@@ -88,8 +89,12 @@ const WEATHER_ICON: Record<WeatherKind, (size: number) => ReactNode> = {
 }
 
 export function Dashboard() {
-  const { tasks } = useStore()
+  const { tasks: allTasks, projects } = useStore()
   const { settings, save } = useSettings()
+  const view = settings.dashboardView ?? 'kontroll'
+  const filter = settings.contextFilter ?? 'alt'
+  // Jobb/Privat gjelder bare kontrollvisningen; kortvisningen viser alt som før.
+  const tasks = view === 'kontroll' ? filterTasks(allTasks, projects, filter) : allTasks
   const today = todayISO()
   const open = tasks.filter((t) => !t.done)
   const overdue = open.filter((t) => t.due && t.due < today).sort((a, b) => a.due!.localeCompare(b.due!) || byTaskOrder(a, b))
@@ -342,7 +347,6 @@ export function Dashboard() {
     ),
   }
 
-  const view = settings.dashboardView ?? 'kontroll'
   const viewToggle = (
     <div className="flex justify-end">
       <div className="flex gap-0.5 rounded-xl border border-glass-border bg-card p-0.5 text-[13px] font-semibold" role="group" aria-label="Visning av Min dag">
@@ -367,6 +371,11 @@ export function Dashboard() {
           {viewToggle}
           <Kontroll
             tasks={tasks}
+            context={filter}
+            onContext={(contextFilter) => save({ contextFilter })}
+            hasJobProjects={hasJobProjects(projects)}
+            thresholds={settings.thresholds}
+            onThresholds={(thresholds) => save({ thresholds })}
             unread={connected && feed?.unread !== undefined ? feed.unread : null}
             planList={
               <>

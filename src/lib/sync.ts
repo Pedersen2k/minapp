@@ -35,7 +35,7 @@ const REMIND_BACKFILL_KEY = 'minapp:remind-backfill'
 const iso = (ms: number) => new Date(ms).toISOString()
 const ms = (s: unknown) => new Date(s as string).getTime()
 
-// Kolonnene fra migrasjon 011 sendes bare når prosjektet har brukt feltet, så synken virker
+// Kolonnene fra migrasjon 011 og 012 sendes bare når prosjektet har brukt feltet, så synken virker
 // også mot en database som ikke har fått migrasjonen ennå.
 function projectExtras(p: Project): Row {
   const row: Row = {}
@@ -44,6 +44,7 @@ function projectExtras(p: Project): Row {
   if ('deadline' in p) row.deadline = p.deadline || null
   if ('pinned' in p) row.pinned = !!p.pinned
   if ('archived' in p) row.archived = !!p.archived
+  if ('context' in p) row.context = p.context || null // migrasjon 012
   return row
 }
 
@@ -112,6 +113,7 @@ function fromRow(table: Table, r: Row): Item {
     if (r.deadline) p.deadline = r.deadline as string
     if (r.pinned) p.pinned = true
     if (r.archived) p.archived = true
+    if (r.context === 'jobb' || r.context === 'privat') p.context = r.context
     return p
   }
   if (table === 'tasks') {
