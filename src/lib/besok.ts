@@ -18,7 +18,6 @@ export interface Besok {
 export type BesokState = 'loading' | 'ready' | 'setup' | 'error' | 'off'
 
 const CACHE = 'minapp:besok'
-const TRY = 'minapp:besok-try'
 const STALE_MS = 30 * 60 * 1000 // tallene er daglige, så en halvtime er mer enn nok
 
 function cached(): Besok | null {
@@ -57,12 +56,13 @@ export function useBesok() {
 
   useEffect(() => {
     if (!supabase) return
+    // Pause etter forsøk gjelder bare mens siden er åpen, så en ny sidelasting alltid prøver på nytt.
+    let lastTry = 0
     const tick = () => {
       if (document.visibilityState !== 'visible') return
-      // Også etter en feil venter vi før neste forsøk, så vi ikke maser på tjenesten.
-      const last = Math.max(cached()?.fetchedAt ?? 0, Number(sessionStorage.getItem(TRY) ?? 0))
+      const last = Math.max(cached()?.fetchedAt ?? 0, lastTry)
       if (Date.now() - last > STALE_MS) {
-        sessionStorage.setItem(TRY, String(Date.now()))
+        lastTry = Date.now()
         load()
       }
     }
