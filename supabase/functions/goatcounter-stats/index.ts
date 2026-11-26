@@ -1,0 +1,78 @@
+// Minapp: henter besøkstall fra GoatCounter til kontrollvisningen i «Min dag».
+//
+// Kalles fra appen av en innlogget bruker (Supabase sjekker innloggingen, så uten gyldig
+// innlogging kommer ingen inn). API-nøkkelen ligger på serversiden og når aldri nettleseren.
+//
+// Hemmeligheter (Edge Functions → Secrets):
+// - GOATCOUNTER_TOKEN: API-nøkkel fra GoatCounter (Innstillinger → API) med lesetilgang.
+// - GOATCOUNTER_SITE: delen foran .goatcounter.com, for eksempel «kaskjerda». Valgfri, standard «kaskjerda».
+//
+// Svar: { configured: false } når nøkkelen mangler, ellers tall for de siste 28 hele dagene.
+
+const SITE = Deno.env.get('GOATCOUNTER_SITE') ?? 'kaskjerda'
+const DAYS = 28
+
+const cors = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
+const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...cors, 'Content-Type': 'application/json' } })
+
+async function gc<T>(path: string, query: Record<string, string>, token: string): Promise<T> {
+  const url = `https://${SITE}.goatcounter.com/api/v0/${path}?${new URLSearchParams(query)}`
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' } })
+  if (!res.ok) throw new Error(`GoatCounter svarte ${res.status} på ${path}`)
+  return (await res.json()) as T
+}
+
+/** Timer foran UTC i Norge akkurat nå (1 om vinteren, 2 om sommeren). */
+function osloOffset(): number {
+  const h = Number(new Intl.DateTimeFormat('en-GB', { hour: '2-digit', hour12: false, timeZone: 'Europe/Oslo' }).format(new Date()))
+  return (h - new Date().getUTCHours() + 24) % 24
+}
+
+const startOfDayUtc = (daysAgo: number) => {
+  const d = new Date()
+  d.setUTCHours(0, 0, 0, 0)
+  d.setUTCDate(d.getUTCDate() - daysAgo)
+  return d.toISOString()
+}
+
+Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
+  const token = Deno.env.get('GOATCOUNTER_TOKEN')
+  if (!token) return json({ configured: false })
+
+  try {
+    const start = startOfDayUtc(DAYS)
+    const end = startOfDayUtc(0) // til og med i går: en halv dag i dag ville sett ut som et fall
+    const range = { start, end }
+    const [total, today, hits, browsers, locations] = await Promise.all([
+      gc<{ total: number; stats: { day: string; daily: number; hourly: number[] }[] }>('stats/total', range, token),
+      gc<{ total: number }>('stats/total', { start: end, end: new Date().toISOString() }, token),
+      gc<{ hits: { path: string; count: number }[] }>('stats/hits', { ...range, limit: '8' }, token),
+      gc<{ stats: { name: string; count: number }[] }>('stats/browsers', { ...range, limit: '5' }, token),
+      gc<{ stats: { name: string; count: number }[] }>('stats/locations', { ...range, limit: '5' }, token),
+    ])
+
+    const stats = total.stats.slice(-DAYS)
+    const offset = osloOffset()
+    const hourly = Array<number>(24).fill(0)
+    for (const day of stats) day.hourly.forEach((n, h) => (hourly[(h + offset) % 24] += n))
+
+    return json({
+      configured: true,
+      fetchedAt: Date.now(),
+      days: stats.map((s) => s.day),
+      views: stats.map((s) => s.daily),
+      today: today.total,
+      hourly, // lokal tid
+      pages: hits.hits.filter((h) => h.path.startsWith('/')).slice(0, 5).map((h) => ({ path: h.path, count: h.count })),
+      browsers: browsers.stats.filter((b) => b.name).map((b) => ({ name: b.name, count: b.count })),
+      countries: locations.stats.filter((l) => l.name).map((l) => ({ name: l.name, count: l.count })),
+      total: total.total,
+    })
+  } catch (e) {
+    return json({ configured: true, error: e instanceof Error ? e.message : 'Ukjent feil' })
+  }
+})

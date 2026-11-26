@@ -1,5 +1,6 @@
 import { ExternalLink, RefreshCw } from 'lucide-react'
 import type { ReactNode } from 'react'
+import { countryName, pageLabel, useBesok, weekChange, type Besok, type BesokState } from '../lib/besok'
 import { ago, statusLevel, type KaskjerdaStatus, type Level } from '../lib/kaskjerda'
 import { dayLabels, doneByDay, heatWeeks, useKaskjerda, usePower } from '../lib/kontroll'
 import { cheapestAndPriciest, formatKr } from '../lib/power'
@@ -29,6 +30,9 @@ export function Kontroll(props: Props) {
   const { tasks, unread, doneToday, overdue, planCount } = props
   const ks = useKaskjerda()
   const power = usePower()
+  const besok = useBesok()
+  const b = besok.data
+  const visits = b ? weekChange(b.views) : null
 
   const done28 = doneByDay(tasks, 28)
   const done14 = done28.slice(-14)
@@ -71,15 +75,28 @@ export function Kontroll(props: Props) {
           <Kpi title="Åpne varsler" value={alertCount === null ? '–' : String(alertCount)} note={ks.error ? 'Fikk ikke svar' : 'kaskjerda.no'} tone={alertCount ? 'warn' : 'ok'} hot={!!alertCount} />
           <Kpi title="Kjøringer ok" value={okShare === null ? '–' : String(Math.round(okShare * 100))} unit={okShare === null ? '' : '%'} note={finished.length ? `${finished.filter((r) => r.result === 'success').length} av ${finished.length}` : 'Ingen data'} tone={okShare === null || okShare === 1 ? 'ok' : 'warn'} spark={runs?.length ? [...runs].reverse().map((r) => (r.result === 'success' ? 2 : r.result === 'failure' ? 0 : 1)) : undefined} sparkColor="var(--k-good)" />
           <Kpi title="Oppgaver i dag" value={String(doneToday)} unit={`/ ${total}`} note={overdue ? `${overdue} forfalt` : 'Ingen forfalte'} tone={overdue ? 'bad' : 'ok'} spark={done14} sparkColor="var(--k-c3)" />
-          <Kpi title="Denne uka" value={String(weekNow)} unit="fullført" note={weekPrev ? `${weekNow >= weekPrev ? '▲' : '▼'} ${Math.abs(weekNow - weekPrev)} mot uka før` : 'Første uke'} tone={weekNow >= weekPrev ? 'ok' : 'warn'} />
+          <Kpi
+            title="Besøk 7 d"
+            value={visits ? String(visits.now) : '–'}
+            note={visits ? (visits.pct === null ? 'Ingen uke å sammenligne med' : `${visits.pct >= 0 ? '▲' : '▼'} ${Math.abs(visits.pct)} % mot uka før`) : BESOK_NOTE[besok.state]}
+            tone={visits && visits.pct !== null && visits.pct < -30 ? 'bad' : 'ok'}
+            spark={b?.views.slice(-14)}
+            sparkColor="var(--k-c1)"
+          />
           <Kpi title="Uleste e-post" value={unread === null ? '–' : String(unread)} note={unread === null ? 'Ikke koblet til' : 'i innboksen'} tone="ok" />
           <Kpi title="Strøm nå" value={priceNow === undefined ? '–' : formatKr(priceNow)} unit="kr" note={power.prices ? `dyrest kl. ${String(cheapestAndPriciest(power.prices.hours).dear).padStart(2, '0')}` : power.error ? 'Utilgjengelig' : 'Henter …'} tone="ok" spark={power.prices?.hours} sparkColor="var(--k-c2)" />
         </div>
 
         <div className="grid gap-3 xl:grid-cols-[2.4fr_1fr]">
-          <Panel title="Fullførte oppgaver · 28 dager" action={<span className="k-sub">{sum(done28)} totalt</span>}>
-            <AreaChart values={done28} w={760} h={250} xLabels={dayLabels(28)} label="Fullførte oppgaver per dag, siste 28 dager" />
-          </Panel>
+          {b ? (
+            <Panel title="Sidevisninger kaskjerda.no · 28 dager" action={<span className="k-sub">i dag så langt: {b.today}</span>}>
+              <AreaChart values={b.views} w={760} h={250} xLabels={dayLabels(b.views.length, 1)} flags={peakFlag(b.views)} label="Sidevisninger per dag, siste 28 dager" />
+            </Panel>
+          ) : (
+            <Panel title="Fullførte oppgaver · 28 dager" action={<span className="k-sub">{sum(done28)} totalt</span>}>
+              <AreaChart values={done28} w={760} h={250} xLabels={dayLabels(28)} label="Fullførte oppgaver per dag, siste 28 dager" />
+            </Panel>
+          )}
           <Panel title="GitHub · varsler" hot={attention > 0} action={<RefreshBtn loading={ks.loading} onClick={ks.reload} />}>
             {alerts}
           </Panel>
@@ -100,6 +117,22 @@ export function Kontroll(props: Props) {
             {heat}
           </Panel>
         </div>
+
+        {besok.state === 'ready' && b ? (
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            <Panel title="Fullførte oppgaver · 28 dager" action={<span className="k-sub">{sum(done28)} totalt</span>}>
+              <AreaChart values={done28} w={420} h={170} xLabels={dayLabels(28)} color="var(--k-c3)" label="Fullførte oppgaver per dag, siste 28 dager" />
+            </Panel>
+            <Panel title="Mest leste sider" action={<span className="k-sub">28 d</span>}>
+              <BesokFacts b={b} />
+            </Panel>
+            <Panel title="Besøk per time" action={<span className="k-sub">norsk tid</span>}>
+              <Bars values={b.hourly} highlight={b.hourly.indexOf(Math.max(...b.hourly))} w={420} h={150} xLabels={HOURS} label="Besøk per time på døgnet, siste 28 dager" />
+            </Panel>
+          </div>
+        ) : (
+          <BesokHint state={besok.state} />
+        )}
       </div>
 
       {/* ---------- Mobil: Radar ---------- */}
@@ -113,12 +146,26 @@ export function Kontroll(props: Props) {
           <RingCard share={okShare ?? 0} text={okShare === null ? '–' : `${Math.round(okShare * 100)}%`} color="var(--k-c2)" title="kaskjerda.no" note={verdict?.label ?? 'Henter …'} />
           <RingCard share={total ? doneToday / total : 0} text={`${doneToday}/${total}`} color="var(--k-c1)" title="Oppgaver i dag" note={overdue ? `${overdue} forfalt` : 'Ingen forfalte'} />
           <RingCard share={priceNow !== undefined && power.prices ? priceNow / Math.max(...power.prices.hours) : 0} text={priceNow === undefined ? '–' : formatKr(priceNow)} color="var(--k-c3)" title="Strøm nå" note="kr/kWh" />
-          <RingCard share={weekNow / Math.max(1, weekNow, weekPrev)} text={String(weekNow)} color="var(--k-c1)" title="Denne uka" note={weekPrev ? `uka før: ${weekPrev}` : 'fullført'} />
+          {visits ? (
+            <RingCard share={visits.now / Math.max(1, visits.now, visits.prev)} text={String(visits.now)} color="var(--k-c1)" title="Besøk 7 d" note={visits.pct === null ? 'kaskjerda.no' : `${visits.pct >= 0 ? '▲' : '▼'} ${Math.abs(visits.pct)} % mot uka før`} />
+          ) : (
+            <RingCard share={weekNow / Math.max(1, weekNow, weekPrev)} text={String(weekNow)} color="var(--k-c1)" title="Denne uka" note={weekPrev ? `uka før: ${weekPrev}` : 'fullført'} />
+          )}
         </div>
         <Panel title="GitHub · varsler" hot={attention > 0} action={<RefreshBtn loading={ks.loading} onClick={ks.reload} />}>
           {alerts}
         </Panel>
+        {b && (
+          <Panel title="Sidevisninger · 28 dager" action={<span className="k-sub">i dag: {b.today}</span>}>
+            <AreaChart values={b.views} w={300} h={130} xLabels={[dayLabels(b.views.length, 1)[0], dayLabels(b.views.length, 1)[4]]} flags={peakFlag(b.views)} label="Sidevisninger per dag, siste 28 dager" />
+          </Panel>
+        )}
         <Panel title="Dagens plan">{props.planList}</Panel>
+        {b && (
+          <Panel title="Mest leste sider" action={<span className="k-sub">28 d</span>}>
+            <BesokFacts b={b} compact />
+          </Panel>
+        )}
         <Panel title="Fullførte oppgaver · 28 dager">
           <AreaChart values={done28} w={300} h={130} xLabels={[dayLabels(28)[0], dayLabels(28)[4]]} label="Fullførte oppgaver per dag, siste 28 dager" />
         </Panel>
@@ -257,6 +304,68 @@ function KsFacts({ status }: { status: KaskjerdaStatus | null }) {
       <p className="text-xs text-muted">
         Nye arrangementer siste døgn: <b className="text-fg">+{status.newCount}</b>
       </p>
+    </div>
+  )
+}
+
+const BESOK_NOTE: Record<BesokState, string> = { loading: 'Henter …', ready: '', setup: 'Ikke satt opp ennå', error: 'Fikk ikke svar', off: 'Krever Supabase' }
+
+/** Merke på toppdagen, plassert så teksten holder seg innenfor grafen. */
+function peakFlag(values: number[]) {
+  const i = values.indexOf(Math.max(...values))
+  return [{ i, text: `Topp: ${values[i]}`, color: 'var(--k-c3)', anchor: i > values.length / 2 ? ('end' as const) : ('start' as const) }]
+}
+
+function Bar({ label, value, max }: { label: string; value: number; max: number }) {
+  return (
+    <div className="my-1.5 grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-1 text-[12.5px]">
+      <span className="truncate">{label}</span>
+      <span className="k-num">{value}</span>
+      <span className="col-span-2 h-[5px] overflow-hidden rounded-full bg-[var(--k-line)]">
+        <span className="block h-full rounded-full bg-[var(--k-c1)]" style={{ width: `${Math.round((value / max) * 100)}%` }} />
+      </span>
+    </div>
+  )
+}
+
+/** Mest leste sider, og fordeling på nettleser og land. */
+function BesokFacts({ b, compact }: { b: Besok; compact?: boolean }) {
+  const pages = new Map<string, number>()
+  for (const p of b.pages) pages.set(pageLabel(p.path), (pages.get(pageLabel(p.path)) ?? 0) + p.count)
+  const rows = [...pages].sort((x, y) => y[1] - x[1]).slice(0, compact ? 3 : 4)
+  const share = (list: { name: string; count: number }[], n: number) => {
+    const t = list.reduce((a, x) => a + x.count, 0)
+    return list.slice(0, n).map((x) => ({ label: x.name, pct: t ? Math.round((x.count / t) * 100) : 0 }))
+  }
+  return (
+    <>
+      {rows.map(([label, n]) => (
+        <Bar key={label} label={label} value={n} max={rows[0][1]} />
+      ))}
+      {!compact && (
+        <p className="mt-3 text-[11px] text-muted">
+          {share(b.browsers, 2).map((x) => `${x.label} ${x.pct} %`).join(' · ')}
+          <br />
+          {share(b.countries.map((c) => ({ ...c, name: countryName(c.name) })), 2).map((x) => `${x.label} ${x.pct} %`).join(' · ')}
+        </p>
+      )}
+    </>
+  )
+}
+
+/** Vises der besøkstall mangler, så det er tydelig hva som må gjøres. */
+function BesokHint({ state }: { state: BesokState }) {
+  if (state === 'loading' || state === 'ready' || state === 'off') return null
+  return (
+    <div className="k-card text-sm">
+      <p className="k-ttl">Besøkstall</p>
+      {state === 'setup' ? (
+        <p className="text-muted">
+          Besøkstall fra GoatCounter er ikke satt opp. Legg inn hemmeligheten <code>GOATCOUNTER_TOKEN</code> i Supabase (Edge Functions → Secrets) og last siden på nytt.
+        </p>
+      ) : (
+        <p className="text-muted">Fikk ikke hentet besøkstall akkurat nå. Prøver igjen automatisk.</p>
+      )}
     </div>
   )
 }

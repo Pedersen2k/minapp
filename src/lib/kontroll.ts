@@ -49,10 +49,11 @@ export function heatWeeks(tasks: Task[], weeks: number): number[][] {
   return out
 }
 
-/** Datoetiketter for aksen under en graf over de siste `days` dagene. */
-export function dayLabels(days: number): { i: number; text: string }[] {
+/** Datoetiketter for aksen under en graf over de siste `days` dagene. `endsAgo` er hvor mange dager siden siste punkt er (0 = i dag, 1 = i går). */
+export function dayLabels(days: number, endsAgo = 0): { i: number; text: string }[] {
   const idx = [0, 0.25, 0.5, 0.75].map((f) => Math.round((days - 1) * f))
-  return [...idx.map((i) => ({ i, text: dayText(days - 1 - i) })), { i: days - 1, text: 'i dag' }]
+  const last = endsAgo === 0 ? 'i dag' : endsAgo === 1 ? 'i går' : dayText(endsAgo)
+  return [...idx.map((i) => ({ i, text: dayText(days - 1 - i + endsAgo) })), { i: days - 1, text: last }]
 }
 
 function dayText(daysAgo: number): string {
