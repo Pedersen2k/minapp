@@ -18,11 +18,18 @@ const cors = {
 }
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...cors, 'Content-Type': 'application/json' } })
 
-async function gc<T>(path: string, query: Record<string, string>, token: string): Promise<T> {
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
+
+/** GoatCounter tillater bare noen få oppslag per sekund (429), så vi tar dem etter hverandre og prøver på nytt ved 429. */
+async function gc<T>(path: string, query: Record<string, string>, token: string, attempt = 0): Promise<T> {
   const url = `https://${SITE}.goatcounter.com/api/v0/${path}?${new URLSearchParams(query)}`
   // redirect: 'manual' fordi GoatCounter sender ukjente nøkler til innloggingssiden (HTML), og da ville vi bare fått en uforståelig lesefeil.
   const res = await fetch(url, { headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' }, redirect: 'manual' })
   console.log(`goatcounter ${path} -> ${res.status} ${res.headers.get('content-type') ?? 'ingen type'}`)
+  if (res.status === 429 && attempt < 3) {
+    await sleep(1200)
+    return gc<T>(path, query, token, attempt + 1)
+  }
   if (res.status >= 300 && res.status < 400) throw new Error(`GoatCounter godtok ikke nøkkelen (sendte til innlogging, status ${res.status}). Lag en ny nøkkel med «Read statistics» og legg den inn på nytt.`)
   if (res.status === 401 || res.status === 403) throw new Error(`GoatCounter godtok ikke nøkkelen (status ${res.status}). Sjekk at den har «Read statistics».`)
   if (!res.ok) throw new Error(`GoatCounter svarte ${res.status} på ${path}`)
@@ -58,13 +65,15 @@ Deno.serve(async (req) => {
     const start = startOfDayUtc(DAYS)
     const end = startOfDayUtc(0) // til og med i går: en halv dag i dag ville sett ut som et fall
     const range = { start, end }
-    const [total, today, hits, browsers, locations] = await Promise.all([
-      gc<{ total: number; stats: { day: string; daily: number; hourly: number[] }[] }>('stats/total', range, token),
-      gc<{ total: number }>('stats/total', { start: end, end: new Date().toISOString() }, token),
-      gc<{ hits: { path: string; count: number }[] }>('stats/hits', { ...range, limit: '8' }, token),
-      gc<{ stats: { name: string; count: number }[] }>('stats/browsers', { ...range, limit: '5' }, token),
-      gc<{ stats: { name: string; count: number }[] }>('stats/locations', { ...range, limit: '5' }, token),
-    ])
+    const total = await gc<{ total: number; stats: { day: string; daily: number; hourly: number[] }[] }>('stats/total', range, token)
+    await sleep(300)
+    const today = await gc<{ total: number }>('stats/total', { start: end, end: new Date().toISOString() }, token)
+    await sleep(300)
+    const hits = await gc<{ hits: { path: string; count: number }[] }>('stats/hits', { ...range, limit: '8' }, token)
+    await sleep(300)
+    const browsers = await gc<{ stats: { name: string; count: number }[] }>('stats/browsers', { ...range, limit: '5' }, token)
+    await sleep(300)
+    const locations = await gc<{ stats: { name: string; count: number }[] }>('stats/locations', { ...range, limit: '5' }, token)
 
     // GoatCounter tar med selve sluttdagen (i dag, med 0), den skal ikke være med i grafen.
     const stats = total.stats.filter((s) => s.day < end.slice(0, 10)).slice(-DAYS)
