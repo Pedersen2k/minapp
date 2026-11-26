@@ -22,6 +22,7 @@ async function gc<T>(path: string, query: Record<string, string>, token: string)
   const url = `https://${SITE}.goatcounter.com/api/v0/${path}?${new URLSearchParams(query)}`
   // redirect: 'manual' fordi GoatCounter sender ukjente nøkler til innloggingssiden (HTML), og da ville vi bare fått en uforståelig lesefeil.
   const res = await fetch(url, { headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' }, redirect: 'manual' })
+  console.log(`goatcounter ${path} -> ${res.status} ${res.headers.get('content-type') ?? 'ingen type'}`)
   if (res.status >= 300 && res.status < 400) throw new Error(`GoatCounter godtok ikke nøkkelen (sendte til innlogging, status ${res.status}). Lag en ny nøkkel med «Read statistics» og legg den inn på nytt.`)
   if (res.status === 401 || res.status === 403) throw new Error(`GoatCounter godtok ikke nøkkelen (status ${res.status}). Sjekk at den har «Read statistics».`)
   if (!res.ok) throw new Error(`GoatCounter svarte ${res.status} på ${path}`)
@@ -84,6 +85,7 @@ Deno.serve(async (req) => {
       total: total.total,
     })
   } catch (e) {
+    console.error('goatcounter-stats feilet:', e instanceof Error ? e.message : e)
     return json({ configured: true, error: e instanceof Error ? e.message : 'Ukjent feil' })
   }
 })
