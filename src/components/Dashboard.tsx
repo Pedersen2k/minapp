@@ -37,6 +37,10 @@ interface NewsItem {
 interface Feed {
   unread?: number
   mails?: MailItem[]
+  /** Post til kaskjerda.no i Gmail (krever nyeste Gmail-skript). */
+  domainUnread?: number
+  domainMails?: MailItem[]
+  domainError?: string
   news?: NewsItem[]
   mailError?: string
   newsError?: string
@@ -376,6 +380,7 @@ export function Dashboard() {
             hasJobProjects={hasJobProjects(projects)}
             thresholds={settings.thresholds}
             onThresholds={(thresholds) => save({ thresholds })}
+            kaskjerdaMail={connected ? { unread: feed?.domainUnread, mails: feed?.domainMails, error: feed?.domainError } : null}
             dismissed={settings.dismissed ?? []}
             onDismiss={(dismissed) => save({ dismissed })}
             unread={connected && feed?.unread !== undefined ? feed.unread : null}

@@ -8,8 +8,16 @@ import { cheapestAndPriciest, formatKr } from '../lib/power'
 import type { Task } from '../lib/types'
 import { AreaChart, Bars, HeatGrid, Ring, Spark } from './charts'
 
+/** Post til domenet kaskjerda.no fra Gmail-skriptet. Null når Gmail ikke er koblet til. */
+export interface KaskjerdaMail {
+  unread?: number
+  mails?: { id: string; from: string; subject: string; url: string; date: string }[]
+  error?: string
+}
+
 interface Props {
   tasks: Task[]
+  kaskjerdaMail: KaskjerdaMail | null
   /** Uleste e-poster, eller null når Gmail ikke er koblet til. */
   unread: number | null
   /** Dagens plan, ferdig tegnet av Dashboard. */
@@ -87,6 +95,15 @@ export function Kontroll(props: Props) {
   const kpiTasks = <Kpi title="Oppgaver i dag" value={String(doneToday)} unit={`/ ${total}`} note={overdue ? `${overdue} forfalt` : 'Ingen forfalte'} tone={overdue ? 'bad' : 'ok'} spark={done14} sparkColor="var(--k-c3)" />
   const kpiWeek = <Kpi title="Denne uka" value={String(weekNow)} unit="fullført" note={weekPrev ? `${weekNow >= weekPrev ? '▲' : '▼'} ${Math.abs(weekNow - weekPrev)} mot uka før` : 'Første uke'} tone={weekNow >= weekPrev ? 'ok' : 'warn'} />
   const kpiMail = <Kpi title="Uleste e-post" value={unread === null ? '–' : String(unread)} note={unread === null ? 'Ikke koblet til' : 'i innboksen'} tone="ok" />
+  const km = props.kaskjerdaMail
+  const kpiKMail = (
+    <Kpi
+      title="Post kaskjerda.no"
+      value={!km ? '–' : km.error || km.unread === undefined ? '–' : String(km.unread)}
+      note={!km ? 'Ikke koblet til' : km.error ? 'Fikk ikke svar' : km.unread === undefined ? 'Oppdater Gmail-skriptet' : 'uleste'}
+      tone="ok"
+    />
+  )
   const kpiOverdue = <Kpi title="Forfalt" value={String(overdue)} note={overdue ? 'frist passert' : 'Ingen forfalte'} tone={overdue ? 'bad' : 'ok'} hot={overdue > 0} />
   const heading = (size: string) => (
     <div className="flex flex-wrap items-end justify-between gap-3 px-1">
@@ -148,7 +165,7 @@ export function Kontroll(props: Props) {
           </>
         ) : (
           <>
-            <div className="grid grid-cols-3 gap-3 xl:grid-cols-6">
+            <div className="grid grid-cols-3 gap-3 xl:grid-cols-7">
               <Kpi title="Åpne varsler" value={alertCount === null ? '–' : String(alertCount)} note={ks.error ? 'Fikk ikke svar' : 'kaskjerda.no'} tone={alertCount ? 'warn' : 'ok'} hot={!!alertCount} />
               <Kpi title="Kjøringer ok" value={okShare === null ? '–' : String(Math.round(okShare * 100))} unit={okShare === null ? '' : '%'} note={finished.length ? `${finished.filter((r) => r.result === 'success').length} av ${finished.length}` : 'Ingen data'} tone={okShare === null || okShare === 1 ? 'ok' : 'warn'} spark={runs?.length ? [...runs].reverse().map((r) => (r.result === 'success' ? 2 : r.result === 'failure' ? 0 : 1)) : undefined} sparkColor="var(--k-good)" />
               {kpiTasks}
@@ -161,6 +178,7 @@ export function Kontroll(props: Props) {
                 sparkColor="var(--k-c1)"
               />
               {kpiMail}
+              {kpiKMail}
               <Kpi title="Strøm nå" value={priceNow === undefined ? '–' : formatKr(priceNow)} unit="kr" note={power.prices ? `dyrest kl. ${String(cheapestAndPriciest(power.prices.hours).dear).padStart(2, '0')}` : power.error ? 'Utilgjengelig' : 'Henter …'} tone="ok" spark={power.prices?.hours} sparkColor="var(--k-c2)" />
             </div>
 
@@ -229,6 +247,28 @@ export function Kontroll(props: Props) {
           )}
         </div>
         {(!jobb || signals.length > 0) && signalPanel}
+        {!jobb && km && (
+          <Panel title="Post til kaskjerda.no" action={<span className="k-sub">{km.unread === undefined ? '' : `${km.unread} uleste`}</span>}>
+            {km.error ? (
+              <p className="text-sm text-muted">Fikk ikke hentet posten: {km.error}</p>
+            ) : km.unread === undefined ? (
+              <p className="text-sm text-muted">Oppdater Gmail-skriptet for å se posten her. Se oppsettet under «Koble til Gmail».</p>
+            ) : !km.mails?.length ? (
+              <p className="text-sm text-muted">Ingen uleste.</p>
+            ) : (
+              <ul>
+                {km.mails.slice(0, 4).map((m, i) => (
+                  <li key={m.id} className={i ? 'border-t border-[var(--k-line)]' : ''}>
+                    <a href={m.url} target="_blank" rel="noreferrer" className="block py-2 hover:opacity-80">
+                      <span className="block truncate text-[13.5px] font-semibold">{m.subject}</span>
+                      <span className="block truncate text-[11px] text-muted">{m.from}</span>
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Panel>
+        )}
         {b && !jobb && (
           <Panel title="Sidevisninger · 28 dager" action={<span className="k-sub">i dag: {b.today}</span>}>
             <AreaChart values={b.views} w={300} h={130} xLabels={[dayLabels(b.views.length, 1)[0], dayLabels(b.views.length, 1)[4]]} flags={peakFlag(b.views)} label="Sidevisninger per dag, siste 28 dager" />
