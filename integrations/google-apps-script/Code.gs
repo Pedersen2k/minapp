@@ -11,6 +11,8 @@
 
 var MAIL_QUERY = 'is:unread in:inbox'
 var MAIL_COUNT = 8
+// Post til domenet kaskjerda.no, forutsatt at den kommer inn i Gmail (videresending eller Google-konto).
+var DOMAIN_MAIL_QUERY = 'to:kaskjerda.no is:unread'
 var NEWS_FEEDS = [
   { source: 'NRK', url: 'https://www.nrk.no/toppsaker.rss' },
   { source: 'NRK Møre og Romsdal', url: 'https://www.nrk.no/mr/toppsaker.rss' },
@@ -45,9 +47,15 @@ function doGet(e) {
   var out = { updated: new Date().toISOString() }
   try {
     out.unread = GmailApp.getInboxUnreadCount()
-    out.mails = getMails_()
+    out.mails = getMails_(MAIL_QUERY, MAIL_COUNT)
   } catch (err) {
     out.mailError = String(err)
+  }
+  try {
+    out.domainUnread = GmailApp.search(DOMAIN_MAIL_QUERY, 0, 100).length
+    out.domainMails = getMails_(DOMAIN_MAIL_QUERY, 5)
+  } catch (err) {
+    out.domainError = String(err)
   }
   try {
     out.news = getNews_()
@@ -57,8 +65,8 @@ function doGet(e) {
   return json_(out)
 }
 
-function getMails_() {
-  return GmailApp.search(MAIL_QUERY, 0, MAIL_COUNT).map(function (thread) {
+function getMails_(query, count) {
+  return GmailApp.search(query, 0, count).map(function (thread) {
     var messages = thread.getMessages()
     var unread = messages.filter(function (m) { return m.isUnread() })
     var m = unread.length ? unread[unread.length - 1] : messages[messages.length - 1]
