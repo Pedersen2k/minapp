@@ -20,8 +20,12 @@ const json = (body: unknown, status = 200) => new Response(JSON.stringify(body),
 
 async function gc<T>(path: string, query: Record<string, string>, token: string): Promise<T> {
   const url = `https://${SITE}.goatcounter.com/api/v0/${path}?${new URLSearchParams(query)}`
-  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' } })
+  // redirect: 'manual' fordi GoatCounter sender ukjente nøkler til innloggingssiden (HTML), og da ville vi bare fått en uforståelig lesefeil.
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' }, redirect: 'manual' })
+  if (res.status >= 300 && res.status < 400) throw new Error(`GoatCounter godtok ikke nøkkelen (sendte til innlogging, status ${res.status}). Lag en ny nøkkel med «Read statistics» og legg den inn på nytt.`)
+  if (res.status === 401 || res.status === 403) throw new Error(`GoatCounter godtok ikke nøkkelen (status ${res.status}). Sjekk at den har «Read statistics».`)
   if (!res.ok) throw new Error(`GoatCounter svarte ${res.status} på ${path}`)
+  if (!(res.headers.get('content-type') ?? '').includes('json')) throw new Error(`GoatCounter svarte ikke med tall (${res.headers.get('content-type') ?? 'ukjent type'}) på ${path}`)
   return (await res.json()) as T
 }
 
@@ -40,7 +44,8 @@ const startOfDayUtc = (daysAgo: number) => {
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
-  const token = Deno.env.get('GOATCOUNTER_TOKEN')
+  // Fjerner mellomrom, linjeskift og anførselstegn som lett følger med når nøkkelen limes inn.
+  const token = Deno.env.get('GOATCOUNTER_TOKEN')?.trim().replace(/^["']|["']$/g, '')
   if (!token) return json({ configured: false })
 
   try {
