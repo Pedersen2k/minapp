@@ -376,6 +376,8 @@ export function Dashboard() {
             hasJobProjects={hasJobProjects(projects)}
             thresholds={settings.thresholds}
             onThresholds={(thresholds) => save({ thresholds })}
+            dismissed={settings.dismissed ?? []}
+            onDismiss={(dismissed) => save({ dismissed })}
             unread={connected && feed?.unread !== undefined ? feed.unread : null}
             planList={
               <>

@@ -21,6 +21,8 @@ export interface Settings {
   contextFilter?: ContextFilter
   /** Terskler som gir varsler i kontrollvisningen. 0 slår en terskel av. */
   thresholds?: Thresholds
+  /** Terskelvarsler brukeren har avvist. Et avvist varsel kommer først tilbake når terskelen er under og nås på nytt. */
+  dismissed?: string[]
   /** Siste sikkerhetskopi til Google Drive (ISO-tid). */
   backupAt?: string
   /** Daglig kopi til Drive når appen åpnes. Standard er på. */

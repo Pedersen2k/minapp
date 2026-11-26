@@ -1,5 +1,5 @@
 import { ExternalLink, RefreshCw, SlidersHorizontal, X } from 'lucide-react'
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { countryName, pageLabel, useBesok, weekChange, type Besok, type BesokState } from '../lib/besok'
 import { ago, statusLevel, type KaskjerdaStatus, type Level } from '../lib/kaskjerda'
 import { dayLabels, doneByDay, heatWeeks, useKaskjerda, usePower } from '../lib/kontroll'
@@ -25,6 +25,8 @@ interface Props {
   hasJobProjects: boolean
   thresholds?: Thresholds
   onThresholds: (t: Thresholds) => void
+  dismissed: string[]
+  onDismiss: (ids: string[]) => void
 }
 
 const TONE: Record<Level, string> = { ok: 'var(--k-good)', warn: 'var(--k-warn)', bad: 'var(--k-bad)' }
@@ -54,13 +56,28 @@ export function Kontroll(props: Props) {
   const alertCount = ks.status?.alerts?.length ?? null
   // Jobb viser bare det som hører til jobb: kaskjerda.no, besøk og strøm er private kilder.
   const jobb = props.context === 'jobb'
-  const signals = evaluateSignals({ thresholds: props.thresholds, visits: jobb ? null : visits, runs: jobb ? null : runs, overdue })
-  const lastRunCovered = signals.some((x) => x.id === 'kjoringer') // da er «siste kjøring feilet» allerede med som varsel
+  const active = evaluateSignals({ thresholds: props.thresholds, visits: jobb ? null : visits, runs: jobb ? null : runs, overdue })
+  // «Forfalt» telles ulikt i Alt, Jobb og Privat, så en avvisning gjelder bare der den ble gjort.
+  const keyOf = (x: Signal) => (x.id === 'forfalt' ? `forfalt-${props.context}` : x.id)
+  const signals = active.filter((x) => !props.dismissed.includes(keyOf(x)))
+  const lastRunCovered = active.some((x) => x.id === 'kjoringer') // da er «siste kjøring feilet» allerede med som varsel (eller avvist)
+  const { dismissed, onDismiss } = props
+  const activeKeys = active.map(keyOf)
+  const dismissedNow = dismissed.filter((k) => activeKeys.includes(k))
+  // Et avvist varsel som ikke lenger er aktivt, slettes fra listen, så det vises igjen neste gang terskelen nås.
+  // Bare varsler som vurderes i denne visningen røres, og vi venter til dataene er hentet.
+  // Mangler kjøringer eller besøkstall (feil, ikke hentet ennå), vurderes ikke de varslene, og avvisningene beholdes.
+  const evaluated = [`forfalt-${props.context}`, ...(jobb ? [] : [...(runs ? ['kjoringer'] : []), ...(visits ? ['besok'] : [])])]
+  const settled = besok.state !== 'loading' && !ks.loading
+  const stale = dismissed.filter((k) => evaluated.includes(k) && !activeKeys.includes(k))
+  useEffect(() => {
+    if (settled && stale.length) onDismiss(dismissed.filter((k) => !stale.includes(k)))
+  }, [settled, stale.join(','), dismissed.join(',')]) // eslint-disable-line
   const attention = jobb ? signals.length : (alertCount ?? 0) + (!lastRunCovered && runs?.[0]?.result === 'failure' ? 1 : 0) + signals.length
   const [editing, setEditing] = useState(false)
   const priceNow = power.prices?.hours[hour]
 
-  const alerts = <AlertList status={ks.status} error={ks.error} signals={signals} github={!jobb} />
+  const alerts = <AlertList status={ks.status} error={ks.error} signals={signals} github={!jobb} onDismiss={(id) => onDismiss([...dismissed, id === 'forfalt' ? `forfalt-${props.context}` : id])} dismissedCount={dismissedNow.length} onRestore={() => onDismiss(dismissed.filter((k) => !dismissedNow.includes(k)))} />
   const powerBars = power.prices && (
     <Bars values={power.prices.hours} highlight={hour} w={260} h={74} xLabels={HOURS} color="var(--k-c2)" label="Strømpris per time i dag" />
   )
@@ -303,8 +320,8 @@ function RefreshBtn({ loading, onClick }: { loading: boolean; onClick: () => voi
   )
 }
 
-function AlertList({ status, error, signals, github }: { status: KaskjerdaStatus | null; error: boolean; signals: Signal[]; github: boolean }) {
-  const rows: { level: Level; title: string; meta: string; url?: string }[] = signals.map((x) => ({ level: x.level, title: x.title, meta: x.meta }))
+function AlertList({ status, error, signals, github, onDismiss, dismissedCount, onRestore }: { status: KaskjerdaStatus | null; error: boolean; signals: Signal[]; github: boolean; onDismiss: (id: string) => void; dismissedCount: number; onRestore: () => void }) {
+  const rows: { level: Level; title: string; meta: string; url?: string; id?: string }[] = signals.map((x) => ({ level: x.level, title: x.title, meta: x.meta, id: x.id }))
   if (github) {
     if (!status && !rows.length) return <p className="text-sm text-muted">{error ? 'Fikk ikke kontakt med GitHub.' : 'Henter varsler …'}</p>
     for (const a of status?.alerts ?? []) rows.push({ level: 'warn', title: a.title, meta: 'skjer-i-alesund · åpent', url: a.url })
@@ -327,19 +344,33 @@ function AlertList({ status, error, signals, github }: { status: KaskjerdaStatus
             {r.url && <ExternalLink size={12} className="mt-1 shrink-0 text-faint" />}
           </>
         )
+        const dismiss = r.id && (
+          <button onClick={() => onDismiss(r.id!)} aria-label={`Avvis varselet: ${r.title}`} title="Avvis. Kommer tilbake først når terskelen nås på nytt." className="-mr-1 grid size-7 shrink-0 place-items-center rounded-lg text-faint hover:bg-hover hover:text-fg">
+            <X size={14} />
+          </button>
+        )
         const cls = `flex gap-2.5 py-2 ${i ? 'border-t border-[var(--k-line)]' : ''}`
         return (
-          <li key={i}>
+          <li key={i} className={dismiss ? 'flex items-start' : undefined}>
             {r.url ? (
               <a href={r.url} target="_blank" rel="noreferrer" className={`${cls} hover:opacity-80`}>
                 {body}
               </a>
             ) : (
-              <div className={cls}>{body}</div>
+              <div className={`${cls} ${dismiss ? 'min-w-0 flex-1' : ''}`}>{body}</div>
             )}
+            {dismiss && <span className={i ? 'mt-px border-t border-transparent pt-1.5' : 'pt-1.5'}>{dismiss}</span>}
           </li>
         )
       })}
+      {dismissedCount > 0 && (
+        <li className="border-t border-[var(--k-line)] pt-2 text-xs text-muted">
+          {dismissedCount} avvist ·{' '}
+          <button onClick={onRestore} className="font-semibold text-accent hover:underline">
+            Vis igjen
+          </button>
+        </li>
+      )}
     </ul>
   )
 }
