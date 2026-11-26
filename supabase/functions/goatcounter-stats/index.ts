@@ -25,8 +25,13 @@ async function gc<T>(path: string, query: Record<string, string>, token: string)
   if (res.status >= 300 && res.status < 400) throw new Error(`GoatCounter godtok ikke nøkkelen (sendte til innlogging, status ${res.status}). Lag en ny nøkkel med «Read statistics» og legg den inn på nytt.`)
   if (res.status === 401 || res.status === 403) throw new Error(`GoatCounter godtok ikke nøkkelen (status ${res.status}). Sjekk at den har «Read statistics».`)
   if (!res.ok) throw new Error(`GoatCounter svarte ${res.status} på ${path}`)
-  if (!(res.headers.get('content-type') ?? '').includes('json')) throw new Error(`GoatCounter svarte ikke med tall (${res.headers.get('content-type') ?? 'ukjent type'}) på ${path}`)
-  return (await res.json()) as T
+  // Leser som tekst og prøver JSON uansett content-type; ved feil tas starten av svaret med i meldingen.
+  const text = await res.text()
+  try {
+    return JSON.parse(text) as T
+  } catch {
+    throw new Error(`GoatCounter svarte ikke med tall (${res.status}, ${res.headers.get('content-type') ?? 'ingen type'}) på ${path}: ${text.replace(/\s+/g, ' ').slice(0, 80)}`)
+  }
 }
 
 /** Timer foran UTC i Norge akkurat nå (1 om vinteren, 2 om sommeren). */
