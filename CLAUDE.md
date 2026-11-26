@@ -39,5 +39,7 @@ Kaskjerda.no (17. nov., i main): kortet «kaskjerda.no» i Min dag (`KaskjerdaCa
 
 Prosjekter (17. nov.): ny prosjektvisning i `ProjectView.tsx` (hode med fremdriftsring, tall, tidslinje mot frist, «Neste opp», underprosjektkort, kategorier som kort, faner på mobil) og ny visning «Alle prosjekter» (`#/projects`, `ProjectsOverview`). Prosjekter har fått beskrivelse, start, frist, festet og arkivert (migrasjon 011). Synken sender de nye kolonnene bare når feltene er brukt. Designet ligger i artifacten «Minapp prosjekter».
 
+Kontrollvisning (26. nov., steg 1 av 3): «Min dag» har fått visningen «Kontroll» (standard) ved siden av «Kort» (de flyttbare kortene), valgt med `dashboardView` i innstillingene. `Kontroll.tsx` viser Cockpit på PC og Radar på mobil med samme tall; grafene ligger i `charts.tsx` (SVG, fargene `--k-*` i `index.css`) og dataene i `lib/kontroll.ts` (fullførte oppgaver per dag og uke, kaskjerda-status, strømpris). Designet ligger i artifacten «Minapp kontrollrom». Steg 2: besøkstall fra GoatCounter via en ny Edge Function (API-nøkkel som Supabase-hemmelighet, aldri i repoet). Steg 3: Jobb/Privat-bryter og terskler som lager varsler.
+
 ## Neste steg
 Fyll inn ved start av ny økt. Forslag: avklar designretning fra artifacten, deretter polering av mobilvisning.

@@ -10,6 +10,7 @@ import { useOpenTask } from '../lib/ui-context'
 import { fetchWeather, weatherKind, weatherText, type Weather, type WeatherKind } from '../lib/weather'
 import { BentoCard, KaskjerdaCard, NotesCard, PowerCard, ShortcutsCard } from './DashboardCards'
 import { DashboardGrid, type CardId } from './DashboardGrid'
+import { Kontroll } from './Kontroll'
 import { InlineQuickAdd } from './QuickAdd'
 import { TaskCheckbox, useCompleteTask } from './TaskItem'
 import { CopyButton } from './ui'
@@ -341,9 +342,60 @@ export function Dashboard() {
     ),
   }
 
+  const view = settings.dashboardView ?? 'kontroll'
+  const viewToggle = (
+    <div className="flex justify-end">
+      <div className="flex gap-0.5 rounded-xl border border-glass-border bg-card p-0.5 text-[13px] font-semibold" role="group" aria-label="Visning av Min dag">
+        {(['kontroll', 'kort'] as const).map((v) => (
+          <button
+            key={v}
+            onClick={() => save({ dashboardView: v })}
+            aria-pressed={view === v}
+            className={`rounded-lg px-3 py-1 transition ${view === v ? 'bg-accent text-white' : 'text-muted hover:text-fg'}`}
+          >
+            {v === 'kontroll' ? 'Kontroll' : 'Kort'}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+
   return (
     <>
-      <DashboardGrid cards={cards} layout={settings.dashboard} onLayout={(dashboard) => save({ dashboard })} />
+      {view === 'kontroll' ? (
+        <div className="flex flex-col gap-3">
+          {viewToggle}
+          <Kontroll
+            tasks={tasks}
+            unread={connected && feed?.unread !== undefined ? feed.unread : null}
+            planList={
+              <>
+                {plan.length > 0 && (
+                  <ul className="mb-3">
+                    {plan.map((t) => (
+                      <PlanRow key={t.id} task={t} overdue={!!t.due && t.due < today} />
+                    ))}
+                  </ul>
+                )}
+                <div className="mt-auto">
+                  <InlineQuickAdd defaults={{ due: today }} />
+                </div>
+              </>
+            }
+            planCount={plan.length}
+            doneToday={doneToday}
+            overdue={overdue.length}
+            greeting={greeting()}
+            dateText={formatLong(today)}
+            hint={next ? `Neste: ${next.title} kl ${next.time}` : plan.length ? `${plan.length} ${plan.length === 1 ? 'oppgave' : 'oppgaver'} igjen i dag` : 'Ingen oppgaver igjen i dag'}
+          />
+        </div>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {viewToggle}
+          <DashboardGrid cards={cards} layout={settings.dashboard} onLayout={(dashboard) => save({ dashboard })} />
+        </div>
+      )}
       {connected && fetchedAt > 0 && (
         <p className="mt-1 text-center text-xs text-faint">
           Oppdatert kl {new Date(fetchedAt).toTimeString().slice(0, 5)} · oppdateres automatisk hver time
