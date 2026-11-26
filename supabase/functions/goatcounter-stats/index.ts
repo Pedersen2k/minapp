@@ -55,7 +55,8 @@ Deno.serve(async (req) => {
       gc<{ stats: { name: string; count: number }[] }>('stats/locations', { ...range, limit: '5' }, token),
     ])
 
-    const stats = total.stats.slice(-DAYS)
+    // GoatCounter tar med selve sluttdagen (i dag, med 0), den skal ikke være med i grafen.
+    const stats = total.stats.filter((s) => s.day < end.slice(0, 10)).slice(-DAYS)
     const offset = osloOffset()
     const hourly = Array<number>(24).fill(0)
     for (const day of stats) day.hourly.forEach((n, h) => (hourly[(h + offset) % 24] += n))

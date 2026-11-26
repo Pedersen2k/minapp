@@ -131,7 +131,7 @@ export function Kontroll(props: Props) {
             </Panel>
           </div>
         ) : (
-          <BesokHint state={besok.state} />
+          <BesokHint state={besok.state} message={besok.message} />
         )}
       </div>
 
@@ -354,7 +354,7 @@ function BesokFacts({ b, compact }: { b: Besok; compact?: boolean }) {
 }
 
 /** Vises der besøkstall mangler, så det er tydelig hva som må gjøres. */
-function BesokHint({ state }: { state: BesokState }) {
+function BesokHint({ state, message }: { state: BesokState; message: string }) {
   if (state === 'loading' || state === 'ready' || state === 'off') return null
   return (
     <div className="k-card text-sm">
@@ -364,7 +364,10 @@ function BesokHint({ state }: { state: BesokState }) {
           Besøkstall fra GoatCounter er ikke satt opp. Legg inn hemmeligheten <code>GOATCOUNTER_TOKEN</code> i Supabase (Edge Functions → Secrets) og last siden på nytt.
         </p>
       ) : (
-        <p className="text-muted">Fikk ikke hentet besøkstall akkurat nå. Prøver igjen automatisk.</p>
+        <p className="text-muted">
+          Fikk ikke hentet besøkstall akkurat nå. Prøver igjen automatisk.
+          {message && <span className="mt-1 block text-xs text-faint">{message}</span>}
+        </p>
       )}
     </div>
   )
