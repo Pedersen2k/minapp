@@ -66,6 +66,7 @@ function dayText(daysAgo: number): string {
 
 const KS_CACHE = 'minapp:kaskjerda-v2'
 const KS_STALE_MS = 10 * 60 * 1000 // GitHub tillater 60 oppslag i timen uten innlogging
+const KS_TRY = 'minapp:kaskjerda-try'
 const POWER_CACHE = 'minapp:power'
 
 function read<T>(key: string): T | null {
@@ -100,7 +101,13 @@ export function useKaskjerda() {
 
   useEffect(() => {
     const tick = () => {
-      if (document.visibilityState === 'visible' && Date.now() - (read<KaskjerdaStatus>(KS_CACHE)?.fetchedAt ?? 0) > KS_STALE_MS) load()
+      if (document.visibilityState !== 'visible') return
+      // Også etter en feil venter vi før neste forsøk: GitHub stenger ute etter 60 oppslag i timen.
+      const last = Math.max(read<KaskjerdaStatus>(KS_CACHE)?.fetchedAt ?? 0, Number(sessionStorage.getItem(KS_TRY) ?? 0))
+      if (Date.now() - last > KS_STALE_MS) {
+        sessionStorage.setItem(KS_TRY, String(Date.now()))
+        load()
+      }
     }
     tick()
     const t = window.setInterval(tick, 60_000)

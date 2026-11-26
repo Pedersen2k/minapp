@@ -18,6 +18,7 @@ export interface Besok {
 export type BesokState = 'loading' | 'ready' | 'setup' | 'error' | 'off'
 
 const CACHE = 'minapp:besok'
+const TRY = 'minapp:besok-try'
 const STALE_MS = 30 * 60 * 1000 // tallene er daglige, så en halvtime er mer enn nok
 
 function cached(): Besok | null {
@@ -31,13 +32,20 @@ function cached(): Besok | null {
 export function useBesok() {
   const [data, setData] = useState<Besok | null>(cached)
   const [state, setState] = useState<BesokState>(cached() ? 'ready' : supabase ? 'loading' : 'off')
+  const [message, setMessage] = useState('')
 
   const load = useCallback(async () => {
     if (!supabase) return
     const { data: res, error } = await supabase.functions.invoke('goatcounter-stats')
-    if (error || !res) return setState((s) => (s === 'ready' ? s : 'error'))
+    if (error || !res) {
+      setMessage(error?.message ?? 'Tomt svar')
+      return setState((s) => (s === 'ready' ? s : 'error'))
+    }
     if (res.configured === false) return setState('setup')
-    if (res.error) return setState((s) => (s === 'ready' ? s : 'error'))
+    if (res.error) {
+      setMessage(String(res.error))
+      return setState((s) => (s === 'ready' ? s : 'error'))
+    }
     setData(res as Besok)
     setState('ready')
     try {
@@ -50,7 +58,13 @@ export function useBesok() {
   useEffect(() => {
     if (!supabase) return
     const tick = () => {
-      if (document.visibilityState === 'visible' && Date.now() - (cached()?.fetchedAt ?? 0) > STALE_MS) load()
+      if (document.visibilityState !== 'visible') return
+      // Også etter en feil venter vi før neste forsøk, så vi ikke maser på tjenesten.
+      const last = Math.max(cached()?.fetchedAt ?? 0, Number(sessionStorage.getItem(TRY) ?? 0))
+      if (Date.now() - last > STALE_MS) {
+        sessionStorage.setItem(TRY, String(Date.now()))
+        load()
+      }
     }
     tick()
     const t = window.setInterval(tick, 5 * 60_000)
@@ -61,7 +75,7 @@ export function useBesok() {
     }
   }, [load])
 
-  return { data: state === 'setup' ? null : data, state }
+  return { data: state === 'setup' ? null : data, state, message }
 }
 
 const sum = (a: number[]) => a.reduce((x, y) => x + y, 0)
