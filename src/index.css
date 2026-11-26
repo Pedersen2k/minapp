@@ -241,3 +241,64 @@ body::before {
     backdrop-filter: none;
   }
 }
+
+/*
+ * Kontrollvisningen i «Min dag» (Kontroll.tsx): mørke instrumentflater i dark mode,
+ * lyse kort i lys modus. Fargene --k-* brukes også av grafene i charts.tsx.
+ */
+.kontroll {
+  --k-card: rgb(255 255 255 / 0.78);
+  --k-line: rgb(60 50 140 / 0.12);
+  --k-fg: #1a1a2e;
+  --k-mut: #64647e;
+  --k-acc: var(--accent);
+  --k-c1: #6a5ae0;
+  --k-c2: #1f9d66;
+  --k-c3: #2f86c4;
+  --k-good: #1f9d66;
+  --k-warn: #c46a00;
+  --k-bad: #d6333d;
+}
+.dark .kontroll {
+  --k-card: #0e1119;
+  --k-line: #1c2130;
+  --k-fg: #e9ecf4;
+  --k-mut: #8a91a8;
+  --k-c1: #9a8dff;
+  --k-c2: #3ddc97;
+  --k-c3: #5ec8ff;
+  --k-good: #3ddc97;
+  --k-warn: #ffb84d;
+  --k-bad: #ff5d6c;
+}
+.k-card {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--k-line);
+  background: var(--k-card);
+  border-radius: 16px;
+  padding: 14px 16px;
+  box-shadow: 0 1px 2px rgb(40 30 120 / 0.05), 0 10px 24px -14px rgb(40 30 120 / 0.25);
+}
+.dark .k-card { box-shadow: none; }
+.k-hot { border-color: color-mix(in srgb, var(--k-warn) 45%, transparent); box-shadow: 0 0 28px -10px color-mix(in srgb, var(--k-warn) 55%, transparent); }
+.k-ttl {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--k-mut);
+}
+.k-sub { font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--faint); }
+.k-num {
+  font-family: ui-monospace, "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+}
+.k-ax { fill: var(--k-mut); font-size: 10px; }

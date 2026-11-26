@@ -14,6 +14,8 @@ export interface Settings {
   notes?: string
   shortcuts?: Shortcut[]
   dashboard?: DashboardLayout
+  /** «Min dag» som kontrollvisning (standard) eller som flyttbare kort. */
+  dashboardView?: 'kontroll' | 'kort'
   /** Siste sikkerhetskopi til Google Drive (ISO-tid). */
   backupAt?: string
   /** Daglig kopi til Drive når appen åpnes. Standard er på. */
