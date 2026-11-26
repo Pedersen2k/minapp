@@ -165,6 +165,22 @@ export function ProjectDialog({ projectId, onClose, onNavigate }: { projectId: s
         </>
       )}
 
+      <label className={`${fieldLabel} mt-5`} id="project-context-label">Hører til</label>
+      <div role="group" aria-labelledby="project-context-label" className="flex gap-1 rounded-xl border border-glass-border bg-surface p-1 text-sm font-medium">
+        {([[undefined, 'Ikke valgt'], ['jobb', 'Jobb'], ['privat', 'Privat']] as const).map(([v, label]) => (
+          <button
+            key={label}
+            type="button"
+            aria-pressed={project.context === v}
+            onClick={() => updateProject(project.id, { context: v })}
+            className={`flex-1 rounded-lg px-3 py-1.5 transition ${project.context === v ? 'bg-accent text-white' : 'text-muted hover:text-fg'}`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      <p className="mt-1.5 text-xs text-muted">Brukes av filteret Jobb/Privat i «Min dag». Underprosjekter arver fra hovedprosjektet, og uten valg regnes oppgavene som private.</p>
+
       <div className="mt-5 border-t border-line pt-3">
         {toggle(!!project.pinned, 'Fest prosjektet', 'Vises øverst i «Alle prosjekter»', (v) => updateProject(project.id, { pinned: v }))}
         {toggle(!!project.archived, 'Arkiver', 'Skjules fra sidemenyen, men beholder alle oppgaver', (v) => updateProject(project.id, { archived: v }))}

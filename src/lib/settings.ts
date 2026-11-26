@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from './supabase'
+import type { ContextFilter, Thresholds } from './kontekst'
 
 export interface Shortcut {
   id: string
@@ -16,6 +17,10 @@ export interface Settings {
   dashboard?: DashboardLayout
   /** «Min dag» som kontrollvisning (standard) eller som flyttbare kort. */
   dashboardView?: 'kontroll' | 'kort'
+  /** Hvilke oppgaver kontrollvisningen viser: alt, bare jobb eller bare privat. */
+  contextFilter?: ContextFilter
+  /** Terskler som gir varsler i kontrollvisningen. 0 slår en terskel av. */
+  thresholds?: Thresholds
   /** Siste sikkerhetskopi til Google Drive (ISO-tid). */
   backupAt?: string
   /** Daglig kopi til Drive når appen åpnes. Standard er på. */

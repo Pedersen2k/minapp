@@ -41,6 +41,9 @@ export interface Section {
   collapsed?: boolean
 }
 
+/** Hører et prosjekt til jobb eller privatlivet? Brukes av kontrollvisningen i «Min dag». */
+export type Context = 'jobb' | 'privat'
+
 export interface Project {
   id: string
   name: string
@@ -56,6 +59,7 @@ export interface Project {
   deadline?: string // YYYY-MM-DD, frist for hele prosjektet
   pinned?: boolean // festet øverst i «Alle prosjekter»
   archived?: boolean // skjult fra sidemenyen
+  context?: Context // underprosjekter arver fra hovedprosjektet; uten valg regnes oppgaven som privat
 }
 
 export type BlockType = 'p' | 'h1' | 'h2' | 'todo' | 'bullet' | 'quote'
