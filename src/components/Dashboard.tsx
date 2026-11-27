@@ -41,6 +41,10 @@ interface Feed {
   domainUnread?: number
   domainMails?: MailItem[]
   domainError?: string
+  /** Uleste GitHub-varsler i Gmail (krever nyeste Gmail-skript). */
+  githubUnread?: number
+  githubMails?: MailItem[]
+  githubError?: string
   news?: NewsItem[]
   mailError?: string
   newsError?: string
@@ -381,6 +385,7 @@ export function Dashboard() {
             thresholds={settings.thresholds}
             onThresholds={(thresholds) => save({ thresholds })}
             kaskjerdaMail={connected ? { unread: feed?.domainUnread, mails: feed?.domainMails, error: feed?.domainError } : null}
+            githubMail={connected ? { unread: feed?.githubUnread, mails: feed?.githubMails, error: feed?.githubError } : null}
             dismissed={settings.dismissed ?? []}
             onDismiss={(dismissed) => save({ dismissed })}
             unread={connected && feed?.unread !== undefined ? feed.unread : null}

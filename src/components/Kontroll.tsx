@@ -15,8 +15,12 @@ export interface KaskjerdaMail {
   error?: string
 }
 
+/** Uleste GitHub-varsler i Gmail. Null når Gmail ikke er koblet til. */
+export type GithubMail = KaskjerdaMail
+
 interface Props {
   tasks: Task[]
+  githubMail: GithubMail | null
   kaskjerdaMail: KaskjerdaMail | null
   /** Uleste e-poster, eller null når Gmail ikke er koblet til. */
   unread: number | null
@@ -81,11 +85,12 @@ export function Kontroll(props: Props) {
   useEffect(() => {
     if (settled && stale.length) onDismiss(dismissed.filter((k) => !stale.includes(k)))
   }, [settled, stale.join(','), dismissed.join(',')]) // eslint-disable-line
-  const attention = jobb ? signals.length : (alertCount ?? 0) + (!lastRunCovered && runs?.[0]?.result === 'failure' ? 1 : 0) + signals.length
+  const ghMails = jobb ? [] : (props.githubMail?.mails ?? [])
+  const attention = jobb ? signals.length : (alertCount ?? 0) + ghMails.length + (!lastRunCovered && runs?.[0]?.result === 'failure' ? 1 : 0) + signals.length
   const [editing, setEditing] = useState(false)
   const priceNow = power.prices?.hours[hour]
 
-  const alerts = <AlertList status={ks.status} error={ks.error} signals={signals} github={!jobb} onDismiss={(id) => onDismiss([...dismissed, id === 'forfalt' ? `forfalt-${props.context}` : id])} dismissedCount={dismissedNow.length} onRestore={() => onDismiss(dismissed.filter((k) => !dismissedNow.includes(k)))} />
+  const alerts = <AlertList status={ks.status} error={ks.error} signals={signals} github={!jobb} mails={ghMails} mailInfo={jobb ? undefined : props.githubMail} onDismiss={(id) => onDismiss([...dismissed, id === 'forfalt' ? `forfalt-${props.context}` : id])} dismissedCount={dismissedNow.length} onRestore={() => onDismiss(dismissed.filter((k) => !dismissedNow.includes(k)))} />
   const powerBars = power.prices && (
     <Bars values={power.prices.hours} highlight={hour} w={260} h={74} xLabels={HOURS} color="var(--k-c2)" label="Strømpris per time i dag" />
   )
@@ -360,11 +365,13 @@ function RefreshBtn({ loading, onClick }: { loading: boolean; onClick: () => voi
   )
 }
 
-function AlertList({ status, error, signals, github, onDismiss, dismissedCount, onRestore }: { status: KaskjerdaStatus | null; error: boolean; signals: Signal[]; github: boolean; onDismiss: (id: string) => void; dismissedCount: number; onRestore: () => void }) {
+function AlertList({ status, error, signals, github, mails, mailInfo, onDismiss, dismissedCount, onRestore }: { mails: NonNullable<GithubMail['mails']>; mailInfo?: GithubMail | null; status: KaskjerdaStatus | null; error: boolean; signals: Signal[]; github: boolean; onDismiss: (id: string) => void; dismissedCount: number; onRestore: () => void }) {
   const rows: { level: Level; title: string; meta: string; url?: string; id?: string }[] = signals.map((x) => ({ level: x.level, title: x.title, meta: x.meta, id: x.id }))
   if (github) {
     if (!status && !rows.length) return <p className="text-sm text-muted">{error ? 'Fikk ikke kontakt med GitHub.' : 'Henter varsler …'}</p>
     for (const a of status?.alerts ?? []) rows.push({ level: 'warn', title: a.title, meta: 'skjer-i-alesund · åpent', url: a.url })
+    for (const m of mails) rows.push({ level: 'warn', title: m.subject, meta: `GitHub · ${m.from}`, url: m.url })
+    if (mailInfo && (mailInfo.error || mailInfo.unread === undefined)) rows.push({ level: 'warn', title: mailInfo.error ? 'Fikk ikke hente GitHub-post fra Gmail' : 'Oppdater Gmail-skriptet for GitHub-varsler', meta: 'Min dag → Koble til Gmail' })
     const last = status?.runs?.[0]
     if (last?.result === 'failure' && !signals.some((x) => x.id === 'kjoringer')) rows.push({ level: 'bad', title: 'Siste kjøring feilet', meta: `oppdater.yml · ${ago(last.at)}`, url: last.url })
     if (status && status.alerts === null) rows.push({ level: 'warn', title: 'Fikk ikke hente varsler fra GitHub', meta: 'prøver igjen automatisk' })

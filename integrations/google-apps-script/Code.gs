@@ -13,6 +13,8 @@ var MAIL_QUERY = 'is:unread in:inbox'
 var MAIL_COUNT = 8
 // Post til domenet kaskjerda.no, forutsatt at den kommer inn i Gmail (videresending eller Google-konto).
 var DOMAIN_MAIL_QUERY = 'to:kaskjerda.no is:unread'
+// Varsler fra GitHub (issues, kjøringer osv.) som kommer som e-post. Vises under «Varsler» i Min dag.
+var GITHUB_MAIL_QUERY = 'from:notifications@github.com is:unread'
 var NEWS_FEEDS = [
   { source: 'NRK', url: 'https://www.nrk.no/toppsaker.rss' },
   { source: 'NRK Møre og Romsdal', url: 'https://www.nrk.no/mr/toppsaker.rss' },
@@ -56,6 +58,12 @@ function doGet(e) {
     out.domainMails = getMails_(DOMAIN_MAIL_QUERY, 5)
   } catch (err) {
     out.domainError = String(err)
+  }
+  try {
+    out.githubUnread = GmailApp.search(GITHUB_MAIL_QUERY, 0, 100).length
+    out.githubMails = getMails_(GITHUB_MAIL_QUERY, 8)
+  } catch (err) {
+    out.githubError = String(err)
   }
   try {
     out.news = getNews_()
